@@ -48,9 +48,6 @@ module Pinion
     # Boilerplate mostly stolen from sprockets
     # https://github.com/sstephenson/sprockets/blob/master/lib/sprockets/server.rb
     def call(env)
-      puts "********************** CALLING CALL"
-      puts "\033[01;34m>>>> env['PATH_INFO']: #{env["PATH_INFO"].inspect}\e[m"
-      puts "************************************"
       start unless @running
 
       # Avoid modifying the session state, don't set cookies, etc
@@ -96,7 +93,6 @@ module Pinion
           invalidate_all_assets_of_type(asset.from_type)
           return get_asset(to_path)
         end
-        puts "\033[01;34m>>>> Using cached asset at to_path: #{to_path.inspect}\e[m"
       else
         begin
           asset = get_uncached_asset(to_path)
