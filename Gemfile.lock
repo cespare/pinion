@@ -1,18 +1,18 @@
 PATH
   remote: .
   specs:
-    pinion (0.0.1)
-      fssm (~> 0.2.8.1)
+    pinion (0.1.1)
       rack (~> 1.0)
 
 GEM
   remote: http://rubygems.org/
   specs:
-    fssm (0.2.8.1)
     rack (1.4.1)
+    rake (0.9.2.2)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   pinion!
+  rake
