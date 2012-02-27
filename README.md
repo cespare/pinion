@@ -11,9 +11,10 @@ Goals
 There are a lot of tools that accomplish very similar things in this space. Pinion is meant to be a very
 simple and lightweight solution. It is driven by these core goals (bold goals are implemented):
 
-* Trivial usage (all configuration lives in your `config.ru`)
-* No added syntax to your assets (e.g. no `//= require my_other_asset`)
-* Recompile all compiled assets when they change (or dependencies change) in development and set real mtimes
+* **Simple configuration and usage.**
+* **No added syntax to your assets (e.g. no `//= require my_other_asset`)**
+* **Recompile all compiled assets when they change (or dependencies change) in development and set mtimes**
+* Recompile asynchronously from requests (no polling allowed)
 * Compile assets one time in production
 
 Installation
@@ -24,7 +25,7 @@ Installation
 Usage
 =====
 
-The easiest way to use Pinion is to map your desired asset mount point to a `Pinion` instance in your
+The easiest way to use Pinion is to map your desired asset mount point to a `Pinion::Server` instance in your
 `config.ru`.
 
 ``` ruby
@@ -32,19 +33,19 @@ require "pinion"
 require "your_app.rb"
 
 map "/assets" do
-  pinion = Pinion.new
+  server = Pinion::Server.new
   # Tell Pinion each type of conversion it should perform
-  pinion.convert :scss => :css # Sass and Coffeescript will just work if you have the gems installed
-  pinion.convert :coffee => :js # Conversion types correspond to file extensions. .coffee -> .js
-  pinion.convert :styl => :css do |file_contents|
+  server.convert :scss => :css # Sass and Coffeescript will just work if you have the gems installed
+  server.convert :coffee => :js # Conversion types correspond to file extensions. .coffee -> .js
+  server.convert :styl => :css do |file_contents|
     Stylus.compile file_contents # Requires the stylus gem
   end
   # Tell Pinion the paths to watch
-  pinion.watch "public/javascripts"
-  pinion.watch "public/scss"
-  pinion.watch "public/stylus"
+  server.watch "public/javascripts"
+  server.watch "public/scss"
+  server.watch "public/stylus"
   # Boom
-  run pinion
+  run server
 end
 
 map "/" do

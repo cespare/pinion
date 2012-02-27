@@ -1,0 +1,8 @@
+source :rubygems
+
+gem "sinatra"
+gem "rack"
+#gem "pinion"
+gem "sass"
+gem "slim"
+gem "rerun"
