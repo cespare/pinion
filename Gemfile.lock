@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    pinion (0.1.1)
+    pinion (0.1.2)
       rack (~> 1.0)
 
 GEM
