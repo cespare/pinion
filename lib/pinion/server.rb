@@ -61,10 +61,12 @@ module Pinion
         return with_content_length([403, { "Content-Type" => "text/plain" }, ["Forbidden"]])
       end
 
-      if File.file? File.join(Dir.pwd, root, path)
-        # Total hack because Rack::Files doesn't seem to use SCRIPT_NAME at all
+      real_file = get_real_file(path)
+      if real_file
+        # Total hack; this is probably a big misuse of Rack::File but I don't want to have to reproduce a lot
+        # of its logic
         # TODO: Fix this
-        env["PATH_INFO"] = File.join(root, path)
+        env["PATH_INFO"] = real_file
         return @file_server.call(env)
       end
 
@@ -91,6 +93,14 @@ module Pinion
     end
 
     private
+
+    def get_real_file(path)
+      @watch_directories.each do |directory|
+        file = File.join(directory, path)
+        return file if File.file? file
+      end
+      nil
+    end
 
     def get_asset(to_path)
       asset = @cached_assets[to_path]

@@ -7,6 +7,7 @@ map "/assets" do
   server = Pinion::Server.new
   server.convert :scss => :css
   server.watch "scss"
+  server.watch "javascripts"
   run server
 end
 
