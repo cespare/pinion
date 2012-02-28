@@ -7,7 +7,6 @@ require "set"
 
 module Pinion
   class Server
-    #CachedFile = Struct.new :from_path, :to_path, :compiled_contents, :mtime
     Asset = Struct.new :from_path, :to_path, :from_type, :to_type, :compiled_contents, :length, :mtime,
                        :content_type
     Watch = Struct.new :path, :from_type, :to_type, :conversion
@@ -18,6 +17,7 @@ module Pinion
       @watches = []
       @cached_assets = {}
       @conversions_used = Set.new
+      @file_server = Rack::File.new(Dir.pwd)
     end
 
     def convert(from_and_to, &block)
@@ -54,10 +54,18 @@ module Pinion
       env["rack.session.options"] ||= {}
       env["rack.session.options"].merge! :defer => true, :skip => true
 
-      path = env["PATH_INFO"].to_s.sub(%r[^/], "")
+      root = env["SCRIPT_NAME"]
+      path = Rack::Utils.unescape(env["PATH_INFO"].to_s).sub(%r[^/], "")
 
       if path.include? ".."
         return with_content_length([403, { "Content-Type" => "text/plain" }, ["Forbidden"]])
+      end
+
+      if File.file? File.join(Dir.pwd, root, path)
+        # Total hack because Rack::Files doesn't seem to use SCRIPT_NAME at all
+        # TODO: Fix this
+        env["PATH_INFO"] = File.join(root, path)
+        return @file_server.call(env)
       end
 
       asset = get_asset(path)
