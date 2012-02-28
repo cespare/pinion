@@ -16,6 +16,7 @@ doctype html
 html
   head
     link type="text/css" rel="stylesheet" href="/assets/style.css"
+    script src="/assets/uncompiled.js"
     title Sample App
   body
     h3 Hello there! This text should be dark green.
