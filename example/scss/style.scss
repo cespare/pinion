@@ -1,1 +1,3 @@
-body { h3 { color: darken(#00aa00, 20%); } }
+@import "other"
+
+body { h3 { color: $darkGreen; } }
