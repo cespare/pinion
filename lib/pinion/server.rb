@@ -43,6 +43,7 @@ module Pinion
     def watch(path)
       raise Error, "#{path} is not a directory." unless File.directory? path
       @watch_directories << path
+      Conversion.add_watch_directory path
     end
 
     # Boilerplate mostly stolen from sprockets

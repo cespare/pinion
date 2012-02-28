@@ -1,4 +1,5 @@
 require "pinion/error"
+require "set"
 
 module Pinion
   # A conversion describes how to convert certain types of files and create asset links for them.
@@ -7,6 +8,7 @@ module Pinion
     @@conversions = {}
     def self.[](from_and_to) @@conversions[from_and_to] end
     def self.conversions_for(to) @@conversions.values.select { |c| c.to_type == to } end
+    def self.add_watch_directory(path) @@conversions.values.each { |c| c.add_watch_directory(path) } end
     def self.create(from_and_to, &block)
       unless from_and_to.is_a?(Hash) && from_and_to.size == 1
         raise Error, "Unexpected argument to Conversion.create: #{from_and_to.inspect}"
@@ -24,11 +26,14 @@ module Pinion
       @to_type = to_type
       @gem_required = nil
       @conversion_fn = nil
+      @watch_fn = Proc.new {} # Don't do anything by default
+      @environment = {}
     end
 
     # DSL methods
     def require_gem(gem_name) @gem_required = gem_name end
     def render(&block) @conversion_fn = block end
+    def watch(&block) @watch_fn = block end
 
     # Instance methods
     def signature() { @from_type => @to_type } end
@@ -40,7 +45,8 @@ module Pinion
         raise Error, "No known content-type for #{@to_type}."
       end
     end
-    def convert(file_contents) @conversion_fn.call(file_contents) end
+    def convert(file_contents) @conversion_fn.call(file_contents, @environment) end
+    def add_watch_directory(path) @watch_fn.call(path, @environment) end
     def require_dependency
       return unless @gem_required
       begin
@@ -63,12 +69,26 @@ module Pinion
   # Define built-in conversions
   Conversion.create :scss => :css do
     require_gem "sass"
-    render { |file_contents|  Sass::Engine.new(file_contents, :syntax => :scss).render }
+    render do |file_contents, environment|
+      load_paths = environment[:load_paths].to_a || []
+      Sass::Engine.new(file_contents, :syntax => :scss, :load_paths => load_paths).render
+    end
+    watch do |path, environment|
+      environment[:load_paths] ||= Set.new
+      environment[:load_paths] << path
+    end
   end
 
   Conversion.create :sass => :css do
     require_gem "sass"
-    render { |file_contents| Sass::Engine.new(file_contents, :syntax => :sass).render }
+    render do |file_contents, environment|
+      load_paths = environment[:load_paths].to_a || []
+      Sass::Engine.new(file_contents, :syntax => :sass, :load_paths => load_paths).render
+    end
+    watch do |path, environment|
+      environment[:load_paths] ||= Set.new
+      environment[:load_paths] << path
+    end
   end
 
   Conversion.create :coffee => :js do
