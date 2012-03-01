@@ -59,7 +59,7 @@ module Pinion
       path = Rack::Utils.unescape(env["PATH_INFO"].to_s).sub(%r[^/], "")
 
       if path.include? ".."
-        return with_content_length([403, { "Content-Type" => "text/plain" }, ["Forbidden"]])
+        return [403, { "Content-Type" => "text/plain", "Content-Length" => "9" }, ["Forbidden"]]
       end
 
       real_file = get_real_file(path)
@@ -83,7 +83,7 @@ module Pinion
         return [200, headers, []] if env["REQUEST_METHOD"] == "HEAD"
         [200, headers, asset.compiled_contents]
       else
-        with_content_length([404, { "Content-Type" => "text/plain" }, ["Not found"]])
+        [404, { "Content-Type" => "text/plain", "Content-Length" => "9" }, ["Not found"]]
       end
     rescue Exception => e
       # TODO: logging
