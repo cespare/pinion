@@ -72,10 +72,10 @@ module Pinion
 
       asset = find_asset(path)
 
-      # If the ETag matches, give a 304
-      return [304, {}, []] if env["HTTP_IF_NONE_MATCH"] == %Q["#{asset.checksum}"]
-
       if asset
+        # If the ETag matches, give a 304
+        return [304, {}, []] if env["HTTP_IF_NONE_MATCH"] == %Q["#{asset.checksum}"]
+
         # Cache for a year in production; don't cache in dev
         cache_policy = checksum_tag ? "max-age=31536000" : "must-revalidate"
         headers = {
