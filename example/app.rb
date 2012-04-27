@@ -4,6 +4,11 @@ require "slim"
 class HelloApp < Sinatra::Base
   enable :inline_templates
 
+  def initialize(pinion)
+    @pinion = pinion
+    super()
+  end
+
   get "/" do
     slim :index
   end
@@ -15,8 +20,8 @@ __END__
 doctype html
 html
   head
-    link type="text/css" rel="stylesheet" href="/assets/style.css"
-    script src="/assets/uncompiled.js"
     title Sample App
+    == @pinion.css_url("style.css")
+    == @pinion.js_url("uncompiled.js")
   body
     h3 Hello there! This text should be dark green.

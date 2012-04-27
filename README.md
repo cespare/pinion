@@ -15,7 +15,7 @@ simple and lightweight solution. It is driven by these core goals (bold goals ar
 * **No added syntax to your assets (e.g. no `//= require my_other_asset`)**
 * **Recompile all compiled assets when they change (or dependencies change) in development and set mtimes**
 * Recompile asynchronously from requests (no polling allowed)
-* Compile assets one time in production
+* **Compile assets one time in production**
 
 Installation
 ============
@@ -34,25 +34,39 @@ The easiest way to use Pinion is to map your desired asset mount point to a `Pin
 require "pinion"
 require "your_app.rb"
 
-map "/assets" do
-  server = Pinion::Server.new
-  # Tell Pinion each type of conversion it should perform
-  server.convert :scss => :css # Sass and Coffeescript will just work if you have the gems installed
-  server.convert :coffee => :js # Conversion types correspond to file extensions. .coffee -> .js
-  server.convert :styl => :css do |file_contents|
-    Stylus.compile file_contents # Requires the stylus gem
-  end
-  # Tell Pinion the paths to watch
-  server.watch "public/javascripts"
-  server.watch "public/scss"
-  server.watch "public/stylus"
+MOUNT_POINT = "/assets"
+pinion = Pinion::Server.new(MOUNT_POINT)
+# Tell Pinion each type of conversion it should perform
+pinion.convert :scss => :css # Sass and Coffeescript will just work if you have the gems installed
+pinion.convert :coffee => :js # Conversion types correspond to file extensions. .coffee -> .js
+pinion.convert :styl => :css do |file_contents|
+  Stylus.compile file_contents # Requires the stylus gem
+end
+# Tell Pinion the paths to watch
+pinion.watch "public/javascripts"
+pinion.watch "public/scss"
+pinion.watch "public/stylus"
+
+map MOUNT_POINT do
   # Boom
-  run server
+  run pinion
 end
 
 map "/" do
-  run Your::App.new
+  # You should pass pinion into your app in order to use its helper methods.
+  run Your::App.new(pinion)
 end
+```
+
+In your app, you will use pinion's helper methods to construct urls:
+
+``` erb
+<head>
+  <title>My App</title>
+  <link type="text/css" rel="stylesheet" href="<%= pinion.asset_url("/assets/style.css") %>" />
+  <!-- Shorthand equivalent -->
+  <%= pinion.css_url("style.css") %>
+</head>
 ```
 
 Notes

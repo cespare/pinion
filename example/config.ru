@@ -3,14 +3,17 @@ $:.unshift File.join(File.dirname(__FILE__), "../lib")
 require "pinion"
 require "./app.rb"
 
-map "/assets" do
-  server = Pinion::Server.new
-  server.convert :scss => :css
-  server.watch "scss"
-  server.watch "javascripts"
-  run server
+ASSET_MOUNT_POINT = "/assets"
+
+pinion = Pinion::Server.new(ASSET_MOUNT_POINT)
+pinion.convert :scss => :css
+pinion.watch "scss"
+pinion.watch "javascripts"
+
+map ASSET_MOUNT_POINT do
+  run pinion
 end
 
 map "/" do
-  run HelloApp.new
+  run HelloApp.new(pinion)
 end

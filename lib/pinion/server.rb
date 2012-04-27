@@ -5,10 +5,15 @@ require "pinion/error"
 
 module Pinion
   class Server
-    def initialize
+    # TODO: is there a way to figure out the mount point ourselves? The only way I can find would be to wait
+    # for a request and compare REQUEST_PATH to PATH_INFO, but that's super hacky and won't work anyway
+    # because we need that information before requests are handled due to #asset_url
+    def initialize(mount_point)
+      @mount_point = mount_point
       @watcher = DirectoryWatcher.new
       @cached_assets = {}
       @file_server = Rack::File.new(Dir.pwd)
+      @environment = (defined?(RACK_ENV) && RACK_ENV) || ENV["RACK_ENV"] || "development"
     end
 
     def convert(from_and_to, &block)
@@ -51,6 +56,11 @@ module Pinion
         return [403, { "Content-Type" => "text/plain", "Content-Length" => "9" }, ["Forbidden"]]
       end
 
+      # Pull out the md5sum if it's part of the given path
+      # e.g. foo/bar-a95c53a7a0f5f492a74499e70578d150.js -> a95c53a7a0f5f492a74499e70578d150
+      checksum_tag = path[/-([\da-f]{32})\..+$/, 1]
+      path.sub!("-#{checksum_tag}", "") if checksum_tag
+
       real_file = @watcher.find path
       if real_file
         # Total hack; this is probably a big misuse of Rack::File but I don't want to have to reproduce a lot
@@ -60,13 +70,19 @@ module Pinion
         return @file_server.call(env)
       end
 
-      asset = get_asset(path)
+      asset = find_asset(path)
+
+      # If the ETag matches, give a 304
+      return [304, {}, []] if env["HTTP_IF_NONE_MATCH"] == %Q["#{asset.checksum}"]
+
       if asset
+        # Cache for a year in production; don't cache in dev
+        cache_policy = checksum_tag ? "max-age=31536000" : "must-revalidate"
         headers = {
           "Content-Type" => asset.content_type,
           "Content-Length" => asset.length.to_s,
-          # TODO: set a long cache in prod mode when implemented
-          "Cache-Control" => "public, must-revalidate",
+          "ETag" => %Q["#{asset.checksum}"],
+          "Cache-Control" => "public, #{cache_policy}",
           "Last-Modified" => asset.mtime.httpdate,
         }
         return [200, headers, []] if env["REQUEST_METHOD"] == "HEAD"
@@ -82,20 +98,40 @@ module Pinion
       raise
     end
 
+    # Helper methods for an application to generate urls (with fingerprints in production)
+    def asset_url(path)
+      path.sub!(%r[^(#{@mount_point})?/?], "")
+      mounted_path = "#{@mount_point}/#{path}"
+
+      # TODO: Change the real file behavior if I replace the use of Rack::File above
+      return mounted_path if @watcher.find(path)
+
+      return mounted_path unless @environment == "production"
+
+      # Add on a checksum tag in production
+      asset = find_asset(path)
+      raise "Error: no such asset available: #{path}" unless asset
+      mounted_path, dot, extension = mounted_path.rpartition(".")
+      return mounted_path if dot.empty?
+      "#{mounted_path}-#{asset.checksum}.#{extension}"
+    end
+    def css_url(path) %Q{<link type="text/css" rel="stylesheet" href="#{asset_url(path)}" />} end
+    def js_url(path) %Q{<script type="application/javascript" src="#{asset_url(path)}"></script>} end
+
     private
 
-    def get_asset(to_path)
+    def find_asset(to_path)
       asset = @cached_assets[to_path]
       if asset
         mtime = asset.mtime
         latest = @watcher.latest_mtime_with_suffix(asset.from_type.to_s)
         if latest > mtime
           invalidate_all_assets_of_type(asset.from_type)
-          return get_asset(to_path)
+          return find_asset(to_path)
         end
       else
         begin
-          asset = get_uncached_asset(to_path)
+          asset = find_uncached_asset(to_path)
         rescue Error
           return nil
         end
@@ -104,7 +140,7 @@ module Pinion
       asset
     end
 
-    def get_uncached_asset(to_path)
+    def find_uncached_asset(to_path)
       from_path, conversion = find_source_file_and_conversion(to_path)
       # If we reach this point we've found the asset we're going to compile
       # TODO: log at info: compiling asset ...
