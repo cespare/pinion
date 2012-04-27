@@ -22,6 +22,8 @@ Installation
 
     $ gem install pinion
 
+You should add pinion to your project's Gemfile.
+
 Usage
 =====
 
@@ -56,13 +58,12 @@ end
 Notes
 -----
 
-* Everything in `/assets` (in the example) will be served as-is. No conversions will be performed on those
-  files (unless you add `/assets` as a watch path).
 * Currently, Pinion sidesteps the dependency question by invalidating its cache of each file of a particular
   type (say, all `.scss` files) when any such source file is changed.
 * The order that paths are added to the watch list is a priority order in case of conflicting assets. (For
   intance, if `foo/bar` and `foo/baz` are both on the watch list, and both of the files `foo/bar/style.scss`
-  and `foo/baz/style.scss` exist, then `foo/bar/style.scss` will be used if a request occurs for `/style.css`.
+  and `foo/baz/style.scss` exist, then `foo/bar/style.scss` will be used if a request occurs for
+  `/style.css`.)
 
 You can see an example app using Pinion and Sinatra in the `example/` directory.
 

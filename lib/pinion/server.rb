@@ -1,22 +1,13 @@
-#require "fssm"
-
-require "pinion/error"
+require "pinion/asset"
 require "pinion/conversion"
-require "time"
-require "set"
+require "pinion/directory_watcher"
+require "pinion/error"
 
 module Pinion
   class Server
-    Asset = Struct.new :from_path, :to_path, :from_type, :to_type, :compiled_contents, :length, :mtime,
-                       :content_type
-    Watch = Struct.new :path, :from_type, :to_type, :conversion
-
     def initialize
-      @running = false
-      @watch_directories = []
-      @watches = []
+      @watcher = DirectoryWatcher.new
       @cached_assets = {}
-      @conversions_used = Set.new
       @file_server = Rack::File.new(Dir.pwd)
     end
 
@@ -42,15 +33,13 @@ module Pinion
 
     def watch(path)
       raise Error, "#{path} is not a directory." unless File.directory? path
-      @watch_directories << path
+      @watcher << path
       Conversion.add_watch_directory path
     end
 
     # Boilerplate mostly stolen from sprockets
     # https://github.com/sstephenson/sprockets/blob/master/lib/sprockets/server.rb
     def call(env)
-      start unless @running
-
       # Avoid modifying the session state, don't set cookies, etc
       env["rack.session.options"] ||= {}
       env["rack.session.options"].merge! :defer => true, :skip => true
@@ -62,7 +51,7 @@ module Pinion
         return [403, { "Content-Type" => "text/plain", "Content-Length" => "9" }, ["Forbidden"]]
       end
 
-      real_file = get_real_file(path)
+      real_file = @watcher.find path
       if real_file
         # Total hack; this is probably a big misuse of Rack::File but I don't want to have to reproduce a lot
         # of its logic
@@ -81,7 +70,7 @@ module Pinion
           "Last-Modified" => asset.mtime.httpdate,
         }
         return [200, headers, []] if env["REQUEST_METHOD"] == "HEAD"
-        [200, headers, asset.compiled_contents]
+        [200, headers, asset]
       else
         [404, { "Content-Type" => "text/plain", "Content-Length" => "9" }, ["Not found"]]
       end
@@ -95,19 +84,11 @@ module Pinion
 
     private
 
-    def get_real_file(path)
-      @watch_directories.each do |directory|
-        file = File.join(directory, path)
-        return file if File.file? file
-      end
-      nil
-    end
-
     def get_asset(to_path)
       asset = @cached_assets[to_path]
       if asset
         mtime = asset.mtime
-        latest = latest_mtime_of_type(asset.from_type)
+        latest = @watcher.latest_mtime_with_suffix(asset.from_type.to_s)
         if latest > mtime
           invalidate_all_assets_of_type(asset.from_type)
           return get_asset(to_path)
@@ -123,41 +104,22 @@ module Pinion
       asset
     end
 
-    def latest_mtime_of_type(type)
-      latest = Time.at(0)
-      @watch_directories.each do |directory|
-        Dir[File.join(directory, "**/*.#{type}")].each do |file|
-          mtime = File.stat(file).mtime
-          latest = mtime if mtime > latest
-        end
-      end
-      latest
-    end
-
     def get_uncached_asset(to_path)
       from_path, conversion = find_source_file_and_conversion(to_path)
       # If we reach this point we've found the asset we're going to compile
-      conversion.require_dependency unless @conversions_used.include? conversion
-      @conversions_used << conversion
       # TODO: log at info: compiling asset ...
-      contents = conversion.convert(File.read(from_path))
-      length = File.stat(from_path).size
-      mtime = latest_mtime_of_type(conversion.from_type)
-      content_type = conversion.content_type
-      return Asset.new from_path, to_path, conversion.from_type, conversion.to_type,
-                       [contents], contents.length, mtime, content_type
+      mtime = @watcher.latest_mtime_with_suffix(conversion.to_type.to_s)
+      Asset.new from_path, to_path, conversion, mtime
     end
 
     def find_source_file_and_conversion(to_path)
       path, dot, suffix = to_path.rpartition(".")
       conversions = Conversion.conversions_for(suffix.to_sym)
       raise Error, "No conversion for for #{to_path}" if conversions.empty?
-      @watch_directories.each do |directory|
-        conversions.each do |conversion|
-          Dir[File.join(directory, "#{path}.#{conversion.from_type}")].each do |from_path|
-            return [from_path, conversion]
-          end
-        end
+      conversions.each do |conversion|
+        filename = "#{path}.#{conversion.from_type}"
+        from_path = @watcher.find filename
+        return [from_path, conversion] if from_path
       end
       raise Error, "No source file found for #{to_path}"
     end
@@ -169,18 +131,6 @@ module Pinion
     def with_content_length(response)
       status, headers, body = response
       [status, headers.merge({ "Content-Length" => Rack::Utils.bytesize(body).to_s }), body]
-    end
-
-    def update_asset(asset)
-    end
-
-    def start
-      @running = true
-      # TODO: mad threadz
-      # Start a thread with an FSSM watch on each directory. Upon detecting a change to a compiled file that
-      # is a dependency of any asset in @required_assets, call update_asset for each affected asset.
-      #
-      # There are some tricky threading issues here.
     end
   end
 end

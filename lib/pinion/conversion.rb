@@ -22,6 +22,7 @@ module Pinion
     attr_reader :from_type, :to_type, :gem_required
 
     def initialize(from_type, to_type)
+      @loaded = false
       @from_type = from_type
       @to_type = to_type
       @gem_required = nil
@@ -45,16 +46,11 @@ module Pinion
         raise Error, "No known content-type for #{@to_type}."
       end
     end
-    def convert(file_contents) @conversion_fn.call(file_contents, @environment) end
-    def add_watch_directory(path) @watch_fn.call(path, @environment) end
-    def require_dependency
-      return unless @gem_required
-      begin
-        require @gem_required
-      rescue LoadError => e
-        raise "Tried to load conversion for #{signature.inspect}, but failed to load the #{@gem_required} gem"
-      end
+    def convert(file_contents)
+      require_dependency
+      @conversion_fn.call(file_contents, @environment)
     end
+    def add_watch_directory(path) @watch_fn.call(path, @environment) end
 
     def verify
       unless [@from_type, @to_type].all? { |s| s.is_a? Symbol }
@@ -62,6 +58,19 @@ module Pinion
       end
       unless @conversion_fn
         raise Error, "Must provide a conversion function with convert { |file_contents| ... }."
+      end
+    end
+
+    private
+
+    def require_dependency
+      return if @loaded
+      @loaded = true
+      return unless @gem_required
+      begin
+        require @gem_required
+      rescue LoadError => e
+        raise "Tried to load conversion for #{signature.inspect}, but failed to load the #{@gem_required} gem"
       end
     end
   end
