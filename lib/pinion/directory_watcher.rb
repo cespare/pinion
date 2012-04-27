@@ -3,9 +3,13 @@ require "time"
 
 module Pinion
   class DirectoryWatcher
-    def initialize(root = ".")
+    # Assume a static filesystem if options[:static] = true. Used in production mode.
+    def initialize(root = ".", options = {})
       @root = root
       @watch_directories = Set.new
+      if @static = options[:static]
+        @find_cache = {}
+      end
     end
 
     def <<(directory) @watch_directories << File.join(@root, directory) end
@@ -20,11 +24,17 @@ module Pinion
     end
 
     def find(path)
+      return @find_cache[path] if (@static && @find_cache.include?(path))
+      result = nil
       @watch_directories.each do |directory|
-        result = File.join(directory, path)
-        return result if File.file? result
+        filename = File.join(directory, path)
+        if File.file? filename
+          result = filename
+          break
+        end
       end
-      nil
+      @find_cache[path] = result if @static
+      result
     end
 
     def latest_mtime_with_suffix(suffix)

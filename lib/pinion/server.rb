@@ -10,10 +10,10 @@ module Pinion
     # because we need that information before requests are handled due to #asset_url
     def initialize(mount_point)
       @mount_point = mount_point
-      @watcher = DirectoryWatcher.new
+      @environment = (defined?(RACK_ENV) && RACK_ENV) || ENV["RACK_ENV"] || "development"
+      @watcher = DirectoryWatcher.new ".", :static => (@environment == "production")
       @cached_assets = {}
       @file_server = Rack::File.new(Dir.pwd)
-      @environment = (defined?(RACK_ENV) && RACK_ENV) || ENV["RACK_ENV"] || "development"
     end
 
     def convert(from_and_to, &block)
@@ -123,6 +123,7 @@ module Pinion
     def find_asset(to_path)
       asset = @cached_assets[to_path]
       if asset
+        return asset if @environment == "production"
         mtime = asset.mtime
         latest = @watcher.latest_mtime_with_suffix(asset.from_type.to_s)
         if latest > mtime
