@@ -116,7 +116,7 @@ module Pinion
       "#{mounted_path}-#{asset.checksum}.#{extension}"
     end
     def css_url(path) %Q{<link type="text/css" rel="stylesheet" href="#{asset_url(path)}" />} end
-    def js_url(path) %Q{<script type="application/javascript" src="#{asset_url(path)}"></script>} end
+    def js_url(path) %Q{<script src="#{asset_url(path)}"></script>} end
 
     private
 
