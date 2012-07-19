@@ -85,7 +85,7 @@ Authors
 =======
 
 Pinion was written by Caleb Spare ([cespare](https://github.com/cespare)). Inspiration from
-[sprockets](https://github.com/sstephenson/sprockets) and [rerun](https://github.com/alexch/rerun).
+[sprockets](https://github.com/sstephenson/sprockets).
 
 License
 =======
