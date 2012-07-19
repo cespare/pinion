@@ -19,5 +19,7 @@ EOS
   s.require_paths = ["lib"]
 
   s.add_dependency "rack", "~> 1.0"
+
   s.add_development_dependency "rake"
+  s.add_development_dependency "yard"
 end

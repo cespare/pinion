@@ -1,3 +1,5 @@
 /pkg
 /example/.sass-cache/
 *.gem
+.yardoc/*
+doc/*
