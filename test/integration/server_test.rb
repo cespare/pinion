@@ -34,6 +34,12 @@ module Pinion
       @compiled_file_body = CoffeeScript.compile(uncompiled_contents)
       @compiled_file_md5 = Digest::MD5.hexdigest(@compiled_file_body)
       @compiled_file_length = @compiled_file_body.length
+
+      # Create a very simple bundler that just concatenates
+      BundleType.create(:js_concatenate) { |assets| assets.map(&:contents).join("\n") }
+      @bundle_file_body = "#{@static_file_body}\n#{@compiled_file_body}"
+      @bundle_file_length = @bundle_file_body.length
+      @bundle_file_md5 = Digest::MD5.hexdigest(@bundle_file_body)
     end
 
     context "in development mode" do
@@ -94,6 +100,14 @@ module Pinion
         should "set a cache control policy to not cache" do
           get "/assets/util.js"
           assert_equal "public, must-revalidate", last_response.headers["Cache-Control"]
+        end
+      end
+
+      context "bundles" do
+        should "return the tags for individual files from the bundle helper" do
+          js_bundle_tags = @server.js_bundle(:js_concatenate, "my-js-bundle", "/app.js", "/util.js")
+          expected_html = '<script src="/assets/app.js"></script><script src="/assets/util.js"></script>'
+          assert_equal expected_html, js_bundle_tags
         end
       end
 
@@ -180,6 +194,26 @@ module Pinion
         should "set a cache control policy to cache for a year" do
           get @url
           assert_equal "public, max-age=#{365 * 24 * 60 * 60}", last_response.headers["Cache-Control"]
+        end
+      end
+
+      context "bundles" do
+        setup do
+          @url = "/assets/my-js-bundle-#{@bundle_file_md5}.js"
+        end
+
+        should "return the bundled filename from the bundle helper" do
+          js_bundle_tags = @server.js_bundle(:js_concatenate, "my-js-bundle", "/app.js", "/util.js")
+          assert js_bundle_tags["my-js-bundle-#{@bundle_file_md5}.js"]
+        end
+
+        should "produce the expected bundled contents" do
+          @server.js_bundle(:js_concatenate, "my-js-bundle", "/app.js", "/util.js")
+          get @url
+          assert_equal 200, last_response.status
+          assert_equal @bundle_file_body, last_response.body
+          assert_equal last_response.body.length, last_response.headers["Content-Length"].to_i
+          assert_equal "application/javascript", last_response.headers["Content-Type"]
         end
       end
 

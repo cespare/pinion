@@ -1,3 +1,5 @@
+require "pinion/asset"
+require "pinion/bundle"
 require "pinion/compiled_asset"
 require "pinion/static_asset"
 require "pinion/conversion"
@@ -55,10 +57,15 @@ module Pinion
 
       # Pull out the md5sum if it's part of the given path
       # e.g. foo/bar-a95c53a7a0f5f492a74499e70578d150.js -> a95c53a7a0f5f492a74499e70578d150
-      checksum_tag = path[/-([\da-f]{32})\..+$/, 1]
-      path.sub!("-#{checksum_tag}", "") if checksum_tag
+      checksum_tag = bundle_name = nil
+      matches = path.match /([^\/]+)-([\da-f]{32})\..+$/
+      if matches && matches.size == 3
+        bundle_name = matches[1]
+        checksum_tag = matches[2]
+        path.sub!("-#{checksum_tag}", "")
+      end
 
-      asset = Asset[path]
+      asset = Bundle[bundle_name, checksum_tag] || Asset[path]
 
       if asset
         # If the ETag matches, give a 304
@@ -78,12 +85,12 @@ module Pinion
       else
         [404, { "Content-Type" => "text/plain", "Content-Length" => "9" }, ["Not found"]]
       end
-    #rescue Exception => e
-      ## TODO: logging
-      #STDERR.puts "Error compiling #{path}:"
-      #STDERR.puts "#{e.class.name}: #{e.message}"
-      ## TODO: render nice custom errors in the browser
-      #raise
+    rescue Exception => e
+      # TODO: logging
+      STDERR.puts "Error compiling #{path}:"
+      STDERR.puts "#{e.class.name}: #{e.message}"
+      # TODO: render nice custom errors in the browser
+      raise
     end
 
     # Helper methods for an application to generate urls (with fingerprints in production)
@@ -100,14 +107,37 @@ module Pinion
       return mounted_path if dot.empty?
       "#{mounted_path}-#{asset.checksum}.#{extension}"
     end
-    def css_url(path) %Q{<link type="text/css" rel="stylesheet" href="#{asset_url(path)}" />} end
-    def js_url(path) %Q{<script src="#{asset_url(path)}"></script>} end
+    def css_url(path) css_wrapper(asset_url(path)) end
+    def js_url(path) js_wrapper(asset_url(path)) end
 
     def asset_inline(path) Asset[path].contents end
     def css_inline(path) %Q{<style type="text/css">#{asset_inline(path)}</style>} end
     def js_inline(path) %Q{<script>#{asset_inline(path)}</script>} end
 
+    # Bundle several assets together. In production, the single bundled result is produced; otherwise, each
+    # individual asset_url is returned.
+    def bundle_url(bundle_name, name, *paths)
+      return paths.map { |p| asset_url(p) } unless Pinion.environment == "production"
+      paths.each { |path| path.sub!(%r[^(#{@mount_point})?/?], "") }
+      assets = paths.map do |path|
+        asset = Asset[path]
+        raise "Error: no such asset available: #{path}" unless asset
+        asset
+      end
+      bundle = Bundle.create(bundle_name, name, assets)
+      ["#{@mount_point}/#{bundle.name}-#{bundle.checksum}.#{bundle.extension}"]
+    end
+    def js_bundle(bundle_name, name, *paths)
+      bundle_url(bundle_name, name, *paths).map { |path| js_wrapper(path) }.join
+    end
+    def css_bundle(bundle_name, name, *paths)
+      bundle_url(bundle_name, name, *paths).map { |path| css_wrapper(path) }.join
+    end
+
     private
+
+    def js_wrapper(inner) %Q{<script src="#{inner}"></script>} end
+    def css_wrapper(inner) %Q{<link type="text/css" rel="stylesheet" href="#{inner}" />} end
 
     def with_content_length(response)
       status, headers, body = response

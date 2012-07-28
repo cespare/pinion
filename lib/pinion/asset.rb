@@ -23,7 +23,7 @@ module Pinion
     # Asset methods
     #
 
-    attr_reader :length, :mtime, :checksum
+    attr_reader :extension, :length, :mtime, :checksum
 
     def initialize() raise "subclass me" end
     def contents() raise "Implement me" end
