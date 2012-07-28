@@ -1,3 +1,4 @@
+require "rack/mime"
 require "digest/md5"
 
 module Pinion
@@ -13,7 +14,7 @@ module Pinion
       @compiled_contents = conversion.convert(File.read(uncompiled_path))
       @length = Rack::Utils.bytesize(@compiled_contents)
       @mtime = mtime
-      @content_type = conversion.content_type
+      @content_type = Rack::Mime::MIME_TYPES[".#{@to_type}"] || "application/octet-stream"
       @checksum = Digest::MD5.hexdigest(@compiled_contents)
     end
 

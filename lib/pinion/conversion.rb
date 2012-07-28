@@ -1,5 +1,6 @@
-require "pinion/error"
 require "set"
+
+require "pinion/error"
 
 module Pinion
   # A conversion describes how to convert certain types of files and create asset links for them.
@@ -38,14 +39,6 @@ module Pinion
 
     # Instance methods
     def signature() { @from_type => @to_type } end
-    def content_type
-      case @to_type
-      when :css then "text/css"
-      when :js then "application/javascript"
-      else
-        raise Error, "No known content-type for #{@to_type}."
-      end
-    end
     def convert(file_contents)
       require_dependency
       @conversion_fn.call(file_contents, @environment)
