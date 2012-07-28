@@ -85,8 +85,8 @@ module Pinion
           "Cache-Control" => "public, #{cache_policy}",
           "Last-Modified" => asset.mtime.httpdate,
         }
-        return [200, headers, []] if env["REQUEST_METHOD"] == "HEAD"
-        [200, headers, asset]
+        body = env["REQUEST_METHOD"] == "HEAD" ? [] : asset
+        [200, headers, body]
       else
         [404, { "Content-Type" => "text/plain", "Content-Length" => "9" }, ["Not found"]]
       end
