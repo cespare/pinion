@@ -1,4 +1,4 @@
-require "pinion/asset"
+require "pinion/compiled_asset"
 require "pinion/static_asset"
 require "pinion/conversion"
 require "pinion/directory_watcher"
@@ -147,7 +147,7 @@ module Pinion
       # If we reach this point we've found the asset we're going to compile
       # TODO: log at info: compiling asset ...
       mtime = @watcher.latest_mtime_with_suffix(conversion.to_type.to_s)
-      Asset.new from_path, to_path, conversion, mtime
+      CompiledAsset.new from_path, conversion, mtime
     end
 
     def find_source_file_and_conversion(to_path)
