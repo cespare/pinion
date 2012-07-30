@@ -3,12 +3,19 @@ require File.join(File.dirname(__FILE__), "../integration_test_helper.rb")
 require "fileutils"
 require "dedent"
 require "digest/md5"
+require "uglifier"
 
 require "pinion/server"
 
 module Pinion
   class ServerTest < Scope::TestCase
     include Rack::Test::Methods
+
+    def minify_js(js_source) Uglifier.compile(js_source) end
+    # Comparing minified JS should reduce problems with variable amounts of whitespace in compiled CS
+    def assert_js_equivalent(expected, actual, message = "")
+      assert_equal minify_js(expected), minify_js(actual), message
+    end
 
     def server
       Server.new("/assets").tap do |s|
@@ -69,8 +76,8 @@ module Pinion
             }).call(this);
           EOS
           expected_body << "\n"
-          assert_equal expected_body, last_response.body
-          assert_equal expected_body.length, last_response.header["Content-Length"].to_i
+          assert_js_equivalent expected_body, last_response.body
+          assert_equal last_response.body.length, last_response.header["Content-Length"].to_i
         end
 
         should "have the expected content-type" do
@@ -151,8 +158,8 @@ module Pinion
         should "be compiled correctly and served with the correct content length" do
           get @url
           assert_equal 200, last_response.status
-          assert_equal @file_body, last_response.body
-          assert_equal @file_body.length, last_response.header["Content-Length"].to_i
+          assert_js_equivalent @file_body, last_response.body
+          assert_equal last_response.body.length, last_response.header["Content-Length"].to_i
         end
 
         should "have the expected content-type" do
