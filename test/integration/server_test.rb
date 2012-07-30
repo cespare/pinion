@@ -53,10 +53,10 @@ module Pinion
           assert_in_delta Time.parse(last_response.headers["Last-Modified"]).to_i, Time.now.to_i, 3
         end
 
-        #should "set a cache control policy to not cache" do
-          #get "/assets/app.js"
-          #assert_equal "public, must-revalidate", last_response.headers["Cache-Control"]
-        #end
+        should "set a cache control policy to not cache" do
+          get "/assets/app.js"
+          assert_equal "public, must-revalidate", last_response.headers["Cache-Control"]
+        end
       end
 
       context "compiled files" do
@@ -130,10 +130,10 @@ module Pinion
           #refute_in_delta Time.parse(last_response.headers["Last-Modified"]).to_i, Time.now.to_i, 3
         #end
 
-        #should "set a cache control policy to not cache" do
-          #get @url
-          #assert_equal "public, must-revalidate", last_response.headers["Cache-Control"]
-        #end
+        should "set a cache control policy to cache for a year" do
+          get @url
+          assert_equal "public, max-age=#{365 * 24 * 60 * 60}", last_response.headers["Cache-Control"]
+        end
       end
 
       context "compiled files" do
