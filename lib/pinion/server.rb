@@ -118,6 +118,10 @@ module Pinion
     def css_url(path) %Q{<link type="text/css" rel="stylesheet" href="#{asset_url(path)}" />} end
     def js_url(path) %Q{<script src="#{asset_url(path)}"></script>} end
 
+    def asset_inline(path) find_asset(path).compiled_contents end
+    def css_inline(path) %Q{<style type="text/css">#{asset_inline(path)}</style>} end
+    def js_inline(path) %Q{<script>#{asset_inline(path)}</script>} end
+
     private
 
     def find_asset(to_path)
