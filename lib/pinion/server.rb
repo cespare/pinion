@@ -1,4 +1,5 @@
 require "pinion/asset"
+require "pinion/static_asset"
 require "pinion/conversion"
 require "pinion/directory_watcher"
 require "pinion/error"
@@ -63,14 +64,10 @@ module Pinion
 
       real_file = @watcher.find path
       if real_file
-        # Total hack; this is probably a big misuse of Rack::File but I don't want to have to reproduce a lot
-        # of its logic
-        # TODO: Fix this
-        env["PATH_INFO"] = real_file
-        return @file_server.call(env)
+        asset = StaticAsset.new(real_file)
+      else
+        asset = find_asset(path)
       end
-
-      asset = find_asset(path)
 
       if asset
         # If the ETag matches, give a 304
