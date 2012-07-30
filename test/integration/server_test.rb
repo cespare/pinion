@@ -3,19 +3,13 @@ require File.join(File.dirname(__FILE__), "../integration_test_helper.rb")
 require "fileutils"
 require "dedent"
 require "digest/md5"
-require "uglifier"
+require "coffee-script"
 
 require "pinion/server"
 
 module Pinion
   class ServerTest < Scope::TestCase
     include Rack::Test::Methods
-
-    def minify_js(js_source) Uglifier.compile(js_source) end
-    # Comparing minified JS should reduce problems with variable amounts of whitespace in compiled CS
-    def assert_js_equivalent(expected, actual, message = "")
-      assert_equal minify_js(expected), minify_js(actual), message
-    end
 
     def server
       Server.new("/assets").tap do |s|
@@ -31,6 +25,17 @@ module Pinion
 
     def app() @@app end
 
+    setup do
+      @static_file_body = %Q{console.log("hi!");\n}
+      @static_file_length = @static_file_body.length
+      @static_file_md5 = Digest::MD5.hexdigest(@static_file_body)
+
+      uncompiled_contents = %Q{console.log "util"\n}
+      @compiled_file_body = CoffeeScript.compile(uncompiled_contents)
+      @compiled_file_md5 = Digest::MD5.hexdigest(@compiled_file_body)
+      @compiled_file_length = @compiled_file_body.length
+    end
+
     context "in development mode" do
       setup do
         ENV["RACK_ENV"] = "development"
@@ -42,9 +47,8 @@ module Pinion
         should "be served unchanged and with the correct content length" do
           get "/assets/app.js"
           assert_equal 200, last_response.status
-          expected_body = %Q{console.log("hi!");\n}
-          assert_equal expected_body, last_response.body
-          assert_equal expected_body.length, last_response.header["Content-Length"].to_i
+          assert_equal @static_file_body, last_response.body
+          assert_equal @static_file_length, last_response.header["Content-Length"].to_i
         end
 
         should "have the expected content-type" do
@@ -70,13 +74,7 @@ module Pinion
         should "be compiled correctly and served with the correct content length" do
           get "/assets/util.js"
           assert_equal 200, last_response.status
-          expected_body = <<-EOS.dedent
-            (function() {
-              console.log("util");
-            }).call(this);
-          EOS
-          expected_body << "\n"
-          assert_js_equivalent expected_body, last_response.body
+          assert_equal @compiled_file_body, last_response.body
           assert_equal last_response.body.length, last_response.header["Content-Length"].to_i
         end
 
@@ -98,6 +96,16 @@ module Pinion
           assert_equal "public, must-revalidate", last_response.headers["Cache-Control"]
         end
       end
+
+      context "app helpers" do
+        should "return the correct asset_url for a static asset" do
+          assert_equal "/assets/app.js", @server.asset_url("/app.js")
+        end
+
+        should "return the correct asset_url for a compiled asset" do
+          assert_equal "/assets/util.js", @server.asset_url("/util.js")
+        end
+      end
     end
 
     context "in production mode" do
@@ -109,16 +117,14 @@ module Pinion
 
       context "static files" do
         setup do
-          @file_body = %Q{console.log("hi!");\n}
-          @md5 = Digest::MD5.hexdigest(@file_body)
-          @url = "/assets/app-#{@md5}.js"
+          @url = "/assets/app-#{@static_file_md5}.js"
         end
 
         should "be served unchanged and with the correct content length" do
           get @url
           assert_equal 200, last_response.status
-          assert_equal @file_body, last_response.body
-          assert_equal @file_body.length, last_response.header["Content-Length"].to_i
+          assert_equal @static_file_body, last_response.body
+          assert_equal @static_file_length, last_response.header["Content-Length"].to_i
         end
 
         should "have the expected content-type" do
@@ -145,20 +151,13 @@ module Pinion
 
       context "compiled files" do
         setup do
-          @file_body = <<-EOS.dedent
-            (function() {
-              console.log("util");
-            }).call(this);
-          EOS
-          @file_body << "\n"
-          @md5 = Digest::MD5.hexdigest(@file_body)
-          @url = "/assets/util-#{@md5}.js"
+          @url = "/assets/util-#{@compiled_file_md5}.js"
         end
 
         should "be compiled correctly and served with the correct content length" do
           get @url
           assert_equal 200, last_response.status
-          assert_js_equivalent @file_body, last_response.body
+          assert_equal @compiled_file_body, last_response.body
           assert_equal last_response.body.length, last_response.header["Content-Length"].to_i
         end
 
@@ -181,6 +180,16 @@ module Pinion
         should "set a cache control policy to cache for a year" do
           get @url
           assert_equal "public, max-age=#{365 * 24 * 60 * 60}", last_response.headers["Cache-Control"]
+        end
+      end
+
+      context "app helpers" do
+        should "return the correct asset_url for a static asset" do
+          assert_equal "/assets/app-#{@static_file_md5}.js", @server.asset_url("/app.js")
+        end
+
+        should "return the correct asset_url for a compiled asset" do
+          assert_equal "/assets/util-#{@compiled_file_md5}.js", @server.asset_url("/util.js")
         end
       end
     end

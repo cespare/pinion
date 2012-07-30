@@ -28,5 +28,4 @@ EOS
   s.add_development_dependency "rack-test"
   s.add_development_dependency "coffee-script"
   s.add_development_dependency "dedent"
-  s.add_development_dependency "uglifier"
 end
