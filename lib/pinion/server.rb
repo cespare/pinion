@@ -13,7 +13,6 @@ module Pinion
       @environment = (defined?(RACK_ENV) && RACK_ENV) || ENV["RACK_ENV"] || "development"
       @watcher = DirectoryWatcher.new ".", :static => (@environment == "production")
       @cached_assets = {}
-      @file_server = Rack::File.new(Dir.pwd)
     end
 
     def convert(from_and_to, &block)
@@ -21,8 +20,8 @@ module Pinion
         raise Error, "Unexpected argument to convert: #{from_and_to.inspect}"
       end
       from, to = from_and_to.to_a[0]
-      unless [from, to].all? { |s| s.is_a? Symbol }
-        raise Error, "Expecting symbols in this hash #{from_and_to.inspect}"
+      unless [from, to].all? { |s| s.is_a? String }
+        raise Error, "Expecting strings in this hash #{from_and_to.inspect}"
       end
       if block_given?
         # Save new conversion type (this might overwrite an implicit or previously defined conversion)
@@ -31,7 +30,7 @@ module Pinion
         end
       else
         unless Conversion[from_and_to]
-          raise Error, "No immplicit conversion for #{from_and_to.inspect}. Must provide a conversion block."
+          raise Error, "No implicit conversion for #{from_and_to.inspect}. Must provide a conversion block."
         end
       end
     end
@@ -61,15 +60,6 @@ module Pinion
       checksum_tag = path[/-([\da-f]{32})\..+$/, 1]
       path.sub!("-#{checksum_tag}", "") if checksum_tag
 
-      real_file = @watcher.find path
-      if real_file
-        # Total hack; this is probably a big misuse of Rack::File but I don't want to have to reproduce a lot
-        # of its logic
-        # TODO: Fix this
-        env["PATH_INFO"] = real_file
-        return @file_server.call(env)
-      end
-
       asset = find_asset(path)
 
       if asset
@@ -79,7 +69,7 @@ module Pinion
         # Cache for a year in production; don't cache in dev
         cache_policy = checksum_tag ? "max-age=31536000" : "must-revalidate"
         headers = {
-          "Content-Type" => asset.content_type,
+          "Content-Type" => asset.content_type || "",
           "Content-Length" => asset.length.to_s,
           "ETag" => %Q["#{asset.checksum}"],
           "Cache-Control" => "public, #{cache_policy}",
@@ -124,45 +114,35 @@ module Pinion
       asset = @cached_assets[to_path]
       if asset
         return asset if @environment == "production"
-        mtime = asset.mtime
-        latest = @watcher.latest_mtime_with_suffix(asset.from_type.to_s)
-        if latest > mtime
-          invalidate_all_assets_of_type(asset.from_type)
+        if @watcher.latest_mtime > asset.mtime
+          @cached_assets.clear
           return find_asset(to_path)
         end
       else
-        begin
-          asset = find_uncached_asset(to_path)
-        rescue Error
-          return nil
-        end
+        asset = find_uncached_asset(to_path)
         @cached_assets[to_path] = asset
       end
       asset
     end
 
     def find_uncached_asset(to_path)
-      from_path, conversion = find_source_file_and_conversion(to_path)
+      from_path, conversions = find_source_file_and_conversions(to_path)
       # If we reach this point we've found the asset we're going to compile
       # TODO: log at info: compiling asset ...
-      mtime = @watcher.latest_mtime_with_suffix(conversion.to_type.to_s)
-      Asset.new from_path, to_path, conversion, mtime
+      Asset.new from_path, to_path, conversions
     end
 
-    def find_source_file_and_conversion(to_path)
-      path, dot, suffix = to_path.rpartition(".")
-      conversions = Conversion.conversions_for(suffix.to_sym)
-      raise Error, "No conversion for for #{to_path}" if conversions.empty?
+    def find_source_file_and_conversions(to_path)
+      from_path = @watcher.find to_path
+      return [from_path, []] if from_path
+      conversions = Conversion.conversions_for(to_path)
+      raise Error, "No conversion for #{to_path}" if conversions.empty?
       conversions.each do |conversion|
-        filename = "#{path}.#{conversion.from_type}"
-        from_path = @watcher.find filename
-        return [from_path, conversion] if from_path
+        filename = "#{to_path[0..to_path.rindex("."+conversion.to_type)-1]}.#{conversion.from_type}"
+        from_path, prev_conversions = find_source_file_and_conversions(filename) rescue next
+        return [from_path, prev_conversions+[conversion]]
       end
       raise Error, "No source file found for #{to_path}"
-    end
-
-    def invalidate_all_assets_of_type(type)
-      @cached_assets.delete_if { |to_path, asset| asset.from_type == type }
     end
 
     def with_content_length(response)

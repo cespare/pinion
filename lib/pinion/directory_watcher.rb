@@ -37,11 +37,8 @@ module Pinion
       result
     end
 
-    def latest_mtime_with_suffix(suffix)
-      pattern = "**/*#{DirectoryWatcher.sanitize_for_glob(suffix)}"
-      glob(pattern).reduce(Time.at(0)) { |latest, path| [latest, File.stat(path).mtime].max }
+    def latest_mtime
+      glob("**/*").reduce(Time.at(0)) { |latest, path| [latest, File.stat(path).mtime].max }
     end
-
-    def self.sanitize_for_glob(pattern) pattern.gsub(/[\*\?\[\]\{\}]/) { |match| "\\#{match}" } end
   end
 end
