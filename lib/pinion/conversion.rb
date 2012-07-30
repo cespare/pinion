@@ -7,7 +7,7 @@ module Pinion
   class Conversion
     @@conversions = {}
     def self.[](from_and_to) @@conversions[from_and_to] end
-    def self.conversions_for(to) @@conversions.values.select { |c| c.to_type == to } end
+    def self.conversions_for(to_path) @@conversions.values.select { |c| to_path.end_with?("."+c.to_type) } end
     def self.add_watch_directory(path) @@conversions.values.each { |c| c.add_watch_directory(path) } end
     def self.create(from_and_to, &block)
       unless from_and_to.is_a?(Hash) && from_and_to.size == 1
@@ -38,14 +38,6 @@ module Pinion
 
     # Instance methods
     def signature() { @from_type => @to_type } end
-    def content_type
-      case @to_type
-      when :css then "text/css"
-      when :js then "application/javascript"
-      else
-        raise Error, "No known content-type for #{@to_type}."
-      end
-    end
     def convert(file_contents)
       require_dependency
       @conversion_fn.call(file_contents, @environment)
@@ -53,8 +45,8 @@ module Pinion
     def add_watch_directory(path) @watch_fn.call(path, @environment) end
 
     def verify
-      unless [@from_type, @to_type].all? { |s| s.is_a? Symbol }
-        raise Error, "Expecting symbol key/value but got #{from_and_to.inspect}"
+      unless [@from_type, @to_type].all? { |s| s.is_a? String }
+        raise Error, "Expecting string key/value but got #{@from_type.inspect} => #{@to_type.inspect}"
       end
       unless @conversion_fn
         raise Error, "Must provide a conversion function with convert { |file_contents| ... }."
@@ -76,7 +68,7 @@ module Pinion
   end
 
   # Define built-in conversions
-  Conversion.create :scss => :css do
+  Conversion.create "scss" => "css" do
     require_gem "sass"
     render do |file_contents, environment|
       load_paths = environment[:load_paths].to_a || []
@@ -88,7 +80,7 @@ module Pinion
     end
   end
 
-  Conversion.create :sass => :css do
+  Conversion.create "sass" => "css" do
     require_gem "sass"
     render do |file_contents, environment|
       load_paths = environment[:load_paths].to_a || []
@@ -100,7 +92,7 @@ module Pinion
     end
   end
 
-  Conversion.create :coffee => :js do
+  Conversion.create "coffee" => "js" do
     require_gem "coffee-script"
     render { |file_contents| CoffeeScript.compile(file_contents) }
   end
