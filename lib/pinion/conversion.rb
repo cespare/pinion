@@ -1,5 +1,6 @@
 require "set"
 
+require "pinion/environment"
 require "pinion/error"
 
 module Pinion
@@ -73,7 +74,8 @@ module Pinion
     require_gem "sass"
     render do |file_contents, context|
       load_paths = context[:load_paths].to_a || []
-      Sass::Engine.new(file_contents, :syntax => :scss, :load_paths => load_paths).render
+      style = Pinion.environment == "production" ? :compressed : :nested
+      Sass::Engine.new(file_contents, :syntax => :scss, :load_paths => load_paths, :style => style).render
     end
     watch do |path, context|
       context[:load_paths] ||= Set.new
@@ -85,7 +87,8 @@ module Pinion
     require_gem "sass"
     render do |file_contents, context|
       load_paths = context[:load_paths].to_a || []
-      Sass::Engine.new(file_contents, :syntax => :sass, :load_paths => load_paths).render
+      style = Pinion.environment == "production" ? :compressed : :nested
+      Sass::Engine.new(file_contents, :syntax => :sass, :load_paths => load_paths, :style => style).render
     end
     watch do |path, context|
       context[:load_paths] ||= Set.new

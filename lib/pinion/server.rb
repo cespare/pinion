@@ -1,9 +1,10 @@
 require "pinion/asset"
 require "pinion/bundle"
 require "pinion/compiled_asset"
-require "pinion/static_asset"
 require "pinion/conversion"
+require "pinion/environment"
 require "pinion/error"
+require "pinion/static_asset"
 
 module Pinion
   class Server

@@ -3,10 +3,9 @@ require "set"
 require "time"
 
 require "pinion/conversion"
+require "pinion/environment"
 
 module Pinion
-  def self.environment() (defined?(RACK_ENV) && RACK_ENV) || ENV["RACK_ENV"] || "development" end
-
   class Asset
     class << self
       attr_reader :watch_directories, :cached_assets
