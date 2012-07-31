@@ -22,6 +22,6 @@ html
   head
     title Sample App
     == @pinion.css_url("style.css")
-    == @pinion.js_url("uncompiled.js")
+    == @pinion.js_bundle(:concatenate_and_uglify_js, "test-bundle", "uncompiled.js", "compiled.js")
   body
     h3 Hello there! This text should be dark green.

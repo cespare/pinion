@@ -7,6 +7,7 @@ ASSET_MOUNT_POINT = "/assets"
 
 pinion = Pinion::Server.new(ASSET_MOUNT_POINT)
 pinion.convert :scss => :css
+pinion.convert :coffee => :js
 pinion.watch "scss"
 pinion.watch "javascripts"
 
