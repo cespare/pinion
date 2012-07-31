@@ -1,7 +1,6 @@
 require "pinion/compiled_asset"
 require "pinion/static_asset"
 require "pinion/conversion"
-require "pinion/directory_watcher"
 require "pinion/error"
 
 module Pinion
@@ -11,9 +10,6 @@ module Pinion
     # because we need that information before requests are handled due to #asset_url
     def initialize(mount_point)
       @mount_point = mount_point
-      @environment = (defined?(RACK_ENV) && RACK_ENV) || ENV["RACK_ENV"] || "development"
-      @watcher = DirectoryWatcher.new ".", :static => (@environment == "production")
-      @cached_assets = {}
       @file_server = Rack::File.new(Dir.pwd)
     end
 
@@ -39,7 +35,7 @@ module Pinion
 
     def watch(path)
       raise Error, "#{path} is not a directory." unless File.directory? path
-      @watcher << path
+      Asset.watch_path(path)
       Conversion.add_watch_directory path
     end
 
@@ -62,12 +58,7 @@ module Pinion
       checksum_tag = path[/-([\da-f]{32})\..+$/, 1]
       path.sub!("-#{checksum_tag}", "") if checksum_tag
 
-      real_file = @watcher.find path
-      if real_file
-        asset = StaticAsset.new(real_file)
-      else
-        asset = find_asset(path)
-      end
+      asset = Asset[path]
 
       if asset
         # If the ETag matches, give a 304
@@ -87,12 +78,12 @@ module Pinion
       else
         [404, { "Content-Type" => "text/plain", "Content-Length" => "9" }, ["Not found"]]
       end
-    rescue Exception => e
-      # TODO: logging
-      STDERR.puts "Error compiling #{path}:"
-      STDERR.puts "#{e.class.name}: #{e.message}"
-      # TODO: render nice custom errors in the browser
-      raise
+    #rescue Exception => e
+      ## TODO: logging
+      #STDERR.puts "Error compiling #{path}:"
+      #STDERR.puts "#{e.class.name}: #{e.message}"
+      ## TODO: render nice custom errors in the browser
+      #raise
     end
 
     # Helper methods for an application to generate urls (with fingerprints in production)
@@ -100,13 +91,10 @@ module Pinion
       path.sub!(%r[^(#{@mount_point})?/?], "")
       mounted_path = "#{@mount_point}/#{path}"
 
-      # TODO: Change the real file behavior if I replace the use of Rack::File above
-      return mounted_path if @watcher.find(path)
-
-      return mounted_path unless @environment == "production"
+      return mounted_path unless Pinion.environment == "production"
 
       # Add on a checksum tag in production
-      asset = find_asset(path)
+      asset = Asset[path]
       raise "Error: no such asset available: #{path}" unless asset
       mounted_path, dot, extension = mounted_path.rpartition(".")
       return mounted_path if dot.empty?
@@ -115,56 +103,11 @@ module Pinion
     def css_url(path) %Q{<link type="text/css" rel="stylesheet" href="#{asset_url(path)}" />} end
     def js_url(path) %Q{<script src="#{asset_url(path)}"></script>} end
 
-    def asset_inline(path) find_asset(path).compiled_contents end
+    def asset_inline(path) Asset[path].contents end
     def css_inline(path) %Q{<style type="text/css">#{asset_inline(path)}</style>} end
     def js_inline(path) %Q{<script>#{asset_inline(path)}</script>} end
 
     private
-
-    def find_asset(to_path)
-      asset = @cached_assets[to_path]
-      if asset
-        return asset if @environment == "production"
-        mtime = asset.mtime
-        latest = @watcher.latest_mtime_with_suffix(asset.from_type.to_s)
-        if latest > mtime
-          invalidate_all_assets_of_type(asset.from_type)
-          return find_asset(to_path)
-        end
-      else
-        begin
-          asset = find_uncached_asset(to_path)
-        rescue Error
-          return nil
-        end
-        @cached_assets[to_path] = asset
-      end
-      asset
-    end
-
-    def find_uncached_asset(to_path)
-      from_path, conversion = find_source_file_and_conversion(to_path)
-      # If we reach this point we've found the asset we're going to compile
-      # TODO: log at info: compiling asset ...
-      mtime = @watcher.latest_mtime_with_suffix(conversion.to_type.to_s)
-      CompiledAsset.new from_path, conversion, mtime
-    end
-
-    def find_source_file_and_conversion(to_path)
-      path, dot, suffix = to_path.rpartition(".")
-      conversions = Conversion.conversions_for(suffix.to_sym)
-      raise Error, "No conversion for for #{to_path}" if conversions.empty?
-      conversions.each do |conversion|
-        filename = "#{path}.#{conversion.from_type}"
-        from_path = @watcher.find filename
-        return [from_path, conversion] if from_path
-      end
-      raise Error, "No source file found for #{to_path}"
-    end
-
-    def invalidate_all_assets_of_type(type)
-      @cached_assets.delete_if { |to_path, asset| asset.from_type == type }
-    end
 
     def with_content_length(response)
       status, headers, body = response

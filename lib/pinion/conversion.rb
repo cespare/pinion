@@ -29,7 +29,7 @@ module Pinion
       @gem_required = nil
       @conversion_fn = nil
       @watch_fn = Proc.new {} # Don't do anything by default
-      @environment = {}
+      @context = {}
     end
 
     # DSL methods
@@ -41,9 +41,9 @@ module Pinion
     def signature() { @from_type => @to_type } end
     def convert(file_contents)
       require_dependency
-      @conversion_fn.call(file_contents, @environment)
+      @conversion_fn.call(file_contents, @context)
     end
-    def add_watch_directory(path) @watch_fn.call(path, @environment) end
+    def add_watch_directory(path) @watch_fn.call(path, @context) end
 
     def verify
       unless [@from_type, @to_type].all? { |s| s.is_a? Symbol }
@@ -71,25 +71,25 @@ module Pinion
   # Define built-in conversions
   Conversion.create :scss => :css do
     require_gem "sass"
-    render do |file_contents, environment|
-      load_paths = environment[:load_paths].to_a || []
+    render do |file_contents, context|
+      load_paths = context[:load_paths].to_a || []
       Sass::Engine.new(file_contents, :syntax => :scss, :load_paths => load_paths).render
     end
-    watch do |path, environment|
-      environment[:load_paths] ||= Set.new
-      environment[:load_paths] << path
+    watch do |path, context|
+      context[:load_paths] ||= Set.new
+      context[:load_paths] << path
     end
   end
 
   Conversion.create :sass => :css do
     require_gem "sass"
-    render do |file_contents, environment|
-      load_paths = environment[:load_paths].to_a || []
+    render do |file_contents, context|
+      load_paths = context[:load_paths].to_a || []
       Sass::Engine.new(file_contents, :syntax => :sass, :load_paths => load_paths).render
     end
-    watch do |path, environment|
-      environment[:load_paths] ||= Set.new
-      environment[:load_paths] << path
+    watch do |path, context|
+      context[:load_paths] ||= Set.new
+      context[:load_paths] << path
     end
   end
 
