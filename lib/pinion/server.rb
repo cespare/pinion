@@ -8,12 +8,10 @@ require "pinion/static_asset"
 
 module Pinion
   class Server
-    # TODO: is there a way to figure out the mount point ourselves? The only way I can find would be to wait
-    # for a request and compare REQUEST_PATH to PATH_INFO, but that's super hacky and won't work anyway
-    # because we need that information before requests are handled due to #asset_url
+    attr_reader :mount_point
+
     def initialize(mount_point)
       @mount_point = mount_point
-      @file_server = Rack::File.new(Dir.pwd)
     end
 
     def convert(from_and_to, &block)

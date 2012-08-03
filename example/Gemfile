@@ -1,9 +1,11 @@
 source :rubygems
 
+# We don't put pinion in the Gemfile because we're going to load the local copy from the parent directory.
+# This is useful for testing.
+
 gem "sinatra"
 gem "thin"
 gem "rack"
-#gem "pinion"
 gem "sass"
 gem "slim"
 gem "rerun"

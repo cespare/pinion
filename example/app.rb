@@ -1,12 +1,22 @@
 require "sinatra"
 require "slim"
+require "pinion"
+require "pinion/sinatra_helpers"
 
 class HelloApp < Sinatra::Base
+  set :pinion, Pinion::Server.new("/assets")
+
+  configure do
+    pinion.convert :scss => :css
+    pinion.convert :coffee => :js
+    pinion.watch "scss"
+    pinion.watch "javascripts"
+  end
+
   enable :inline_templates
 
-  def initialize(pinion)
-    @pinion = pinion
-    super()
+  helpers do
+    include Pinion::SinatraHelpers
   end
 
   get "/" do
@@ -21,7 +31,7 @@ doctype html
 html
   head
     title Sample App
-    == @pinion.css_url("style.css")
-    == @pinion.js_bundle(:concatenate_and_uglify_js, "test-bundle", "uncompiled.js", "compiled.js")
+    == css_url("style.css")
+    == js_bundle(:concatenate_and_uglify_js, "test-bundle", "uncompiled.js", "compiled.js")
   body
     h3 Hello there! This text should be dark green.

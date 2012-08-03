@@ -23,8 +23,56 @@ You should add pinion to your project's Gemfile.
 
 # Usage
 
-The easiest way to use Pinion is to map your desired asset mount point to a `Pinion::Server` instance in your
-`config.ru`.
+Pinion is intended to be easy to set up and use with any Rack app, and even simpler with Sinatra.
+
+## With Sinatra
+
+Pinion provides helpers to make it interact well with Sinatra. In your app:
+
+``` ruby
+require "sinatra"
+require "pinion"
+require "pinion/sinatra_helpers"
+
+class YourApp < Sinatra::Base
+  set :pinion, Pinion::Server.new("/assets")
+
+  configure do
+    # Tell Pinion each type of conversion it should perform
+    pinion.convert :scss => :css   # Sass and Coffeescript will just work if you have the gems installed
+    pinion.convert :coffee => :js  # Conversion types correspond to file extensions. .coffee -> .js
+    pinion.convert :styl => :css do |file_contents|
+      Stylus.compile file_contents # Requires the stylus gem
+    end
+    # Tell Pinion the paths to watch for files
+    pinion.watch "public/javascripts"
+    pinion.watch "public/scss"
+    pinion.watch "public/stylus"
+  end
+
+  helpers { include Pinion::SinatraHelpers }
+  ...
+end
+```
+
+and your config.ru:
+
+``` ruby
+require "your_app.rb"
+
+map YourApp.pinion.mount_point do
+  run YourApp.pinion
+end
+
+map "/" do
+  run YourApp
+end
+```
+
+## Without Sinatra
+
+If you're not using Sinatra, the easiest way to use Pinion is to create and mount a `Pinion::Server` instance
+in your `config.ru`.
 
 ``` ruby
 require "pinion"
@@ -33,8 +81,8 @@ require "your_app.rb"
 MOUNT_POINT = "/assets"
 pinion = Pinion::Server.new(MOUNT_POINT)
 # Tell Pinion each type of conversion it should perform
-pinion.convert :scss => :css # Sass and Coffeescript will just work if you have the gems installed
-pinion.convert :coffee => :js # Conversion types correspond to file extensions. .coffee -> .js
+pinion.convert :scss => :css   # Sass and Coffeescript will just work if you have the gems installed
+pinion.convert :coffee => :js  # Conversion types correspond to file extensions. .coffee -> .js
 pinion.convert :styl => :css do |file_contents|
   Stylus.compile file_contents # Requires the stylus gem
 end
@@ -49,12 +97,15 @@ map MOUNT_POINT do
 end
 
 map "/" do
-  # You should pass pinion into your app in order to use its helper methods.
+  # If you want to use Pinion's helper methods inside your app, you'll have to pass in the Pinion instance to
+  # the app somehow.
   run Your::App.new(pinion)
 end
 ```
 
-In your app, you will use pinion's helper methods to construct urls:
+## App helpers
+
+Pinion provides some helpers to help you construct links for assets.
 
 ``` erb
 <head>
@@ -65,7 +116,14 @@ In your app, you will use pinion's helper methods to construct urls:
 </head>
 ```
 
-# Production usage
+This assumes that you have the `Pinion::Server` instance available inside your app as `pinion`. If you're
+using sinatra and `Pinion::SinatraHelpers`, then the helpers are available right in your app's scope:
+
+``` erb
+  <%= css_url("style.css") %>
+```
+
+# In Production
 
 In production, you may wish to concatenate and minify your assets before you serve them. This is done through
 using asset bundles. Pinion provides a predefined bundle type, `:concatenate_and_uglify_js`, for your
@@ -74,7 +132,7 @@ convenience.
 You can bundle files by putting this in your app:
 
 ``` erb
-<%= @pinion.js_bundle(:concatenate_and_uglify_js, "main-bundle",
+<%= pinion.js_bundle(:concatenate_and_uglify_js, "main-bundle",
     "app.js",
     "helpers.js",
     "util.js",
