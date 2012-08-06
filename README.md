@@ -123,7 +123,7 @@ using sinatra and `Pinion::SinatraHelpers`, then the helpers are available right
   <%= css_url("style.css") %>
 ```
 
-# In Production
+## In Production
 
 In production, you may wish to concatenate and minify your assets before you serve them. This is done through
 using asset bundles. Pinion provides a predefined bundle type, `:concatenate_and_uglify_js`, for your
@@ -182,6 +182,36 @@ directory to get the necessary gems, then run it:
 
     rackup config.ru                     # Development mode
     RACK_ENV=production rackup config.ru # Production mode
+
+## Why not use Sprockets?
+
+You should! [Sprockets](https://github.com/sstephenson/sprockets/) is a great project. Pinion is a smaller
+project than Sprockets, and it does fewer things. I made Pinion because I'm not using Rails (the Rails
+integration is where Sprockets really shines) and because some of the design choices that Sprockets makes
+don't really fit my ideal workflow. Here are a few things that Pinion does differently:
+
+* Conversions are defined from one filetype to another (e.g. `:scss => :css`), not by the chain of file
+  extensions (e.g. `foo.css.scss`). I like the asset manager to follow the file naming scheme, not the other
+  way around.
+* It's very easy to define your own conversions instead of using the built-in ones (and this is expected, as
+  Pinion only comes with a few of them). This makes it very simple to customize the behavior for your own
+  needs. Want to output minified css in production but a human-readable version in dev? This is easy to do
+  (and this is the default behavior of the built-in sass/scss converters).
+* To support concatenation, Sprockets uses special directives in comments at the beginning of files (e.g.
+  `//= require jquery`) to specify dependencies between files. To my mind, this is not desirable because:
+
+    * It's easier to debug in development if the files aren't all concatentated together.
+    * Other systems (say, a node.js-based JS test runner) don't understand these dependencies.
+    * How you bundle assets is mostly a caching/performance concern separate from your app logic, so it
+      doesn't necessarily make sense to tie them together. For instance, you may wish to bundle together your
+      vendored JS separately from your application JS if you expect the latter to change much more frequently.
+
+  In contrast, Pinion bundles are created by using the `*_bundle` methods in your app server (view) code,
+  which (in my opinion) is much more obvious behavior.
+
+This being said, you should certainly consider using Sprockets if it fits into your project. It is a very
+established project that powers the Rails asset pipeline, and it has great support for a wide variety of
+conversion types. If you use both, let me know what you think!
 
 # Authors
 
