@@ -50,7 +50,7 @@ class YourApp < Sinatra::Base
     pinion.watch "public/stylus"
   end
 
-  helpers { include Pinion::SinatraHelpers }
+  helpers Pinion::SinatraHelpers
   ...
 end
 ```

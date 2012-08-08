@@ -15,9 +15,7 @@ class HelloApp < Sinatra::Base
 
   enable :inline_templates
 
-  helpers do
-    include Pinion::SinatraHelpers
-  end
+  helpers Pinion::SinatraHelpers
 
   get "/" do
     slim :index

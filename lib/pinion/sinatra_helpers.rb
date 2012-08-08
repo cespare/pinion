@@ -9,9 +9,7 @@ module Pinion
   #
   # then mix in in this module in your sinatra app:
   #
-  #     helpers do
-  #       include Pinion::SinatraHelpers
-  #     end
+  #     helpers Pinion::SinatraHelpers
   #
   # Now you can access the Pinion::Server helper methods in your view:
   #
