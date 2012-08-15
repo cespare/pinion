@@ -106,7 +106,8 @@ module Pinion
       context "bundles" do
         should "return the tags for individual files from the bundle helper" do
           js_bundle_tags = @server.js_bundle(:js_concatenate, "my-js-bundle", "/app.js", "/util.js")
-          expected_html = '<script src="/assets/app.js"></script><script src="/assets/util.js"></script>'
+          expected_html = '<script type="text/javascript" src="/assets/app.js"></script>' <<
+                          '<script type="text/javascript" src="/assets/util.js"></script>'
           assert_equal expected_html, js_bundle_tags
         end
       end

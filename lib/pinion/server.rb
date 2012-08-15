@@ -135,7 +135,9 @@ module Pinion
 
     private
 
-    def js_wrapper(inner) %Q{<script src="#{inner}"></script>} end
+    # Need type="text/javascript" for IE compatibility. The content-type will be set correctly as
+    # "application/javascript" in the response.
+    def js_wrapper(inner) %Q{<script type="text/javascript" src="#{inner}"></script>} end
     def css_wrapper(inner) %Q{<link type="text/css" rel="stylesheet" href="#{inner}" />} end
 
     def with_content_length(response)
