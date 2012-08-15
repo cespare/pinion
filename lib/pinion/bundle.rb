@@ -8,6 +8,7 @@ module Pinion
   # A `Bundle` is a set of assets of the same type that will be served as a single grouped asset in
   # production. A `Bundle` has a `BundleType` that defines how to process the bundle.
   class Bundle < Asset
+    # Each bundle is cached by name.
     @@bundles = {}
 
     attr_reader :contents, :name
@@ -33,16 +34,15 @@ module Pinion
     def self.create(bundle_type_name, name, assets)
       bundle_type = BundleType[bundle_type_name]
       raise Error, "No such bundle type #{bundle_type_name}" unless bundle_type
+      if @@bundles[name]
+        raise Error, "There is already a bundle called #{name}. Each bundle must have a different name."
+      end
       bundle = Bundle.new(bundle_type, name, assets)
-      @@bundles[bundle.checksum] = bundle
+      @@bundles[name] = bundle
       bundle
     end
 
-    # Find a `Bundle` by its name and checksum
-    def self.[](name, checksum)
-      return nil unless name && checksum
-      bundle = @@bundles[checksum]
-      (bundle && (bundle.name == name)) ? bundle : nil
-    end
+    # Find a `Bundle` by its name.
+    def self.[](name) name && @@bundles[name] end
   end
 end

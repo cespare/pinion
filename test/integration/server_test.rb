@@ -105,7 +105,7 @@ module Pinion
 
       context "bundles" do
         should "return the tags for individual files from the bundle helper" do
-          js_bundle_tags = @server.js_bundle(:js_concatenate, "my-js-bundle", "/app.js", "/util.js")
+          js_bundle_tags = @server.js_bundle(:js_concatenate, "my-js-bundle-1", "/app.js", "/util.js")
           expected_html = '<script type="text/javascript" src="/assets/app.js"></script>' <<
                           '<script type="text/javascript" src="/assets/util.js"></script>'
           assert_equal expected_html, js_bundle_tags
@@ -199,22 +199,33 @@ module Pinion
       end
 
       context "bundles" do
-        setup do
-          @url = "/assets/my-js-bundle-#{@bundle_file_md5}.js"
-        end
-
         should "return the bundled filename from the bundle helper" do
-          js_bundle_tags = @server.js_bundle(:js_concatenate, "my-js-bundle", "/app.js", "/util.js")
-          assert js_bundle_tags["my-js-bundle-#{@bundle_file_md5}.js"]
+          js_bundle_tags = @server.js_bundle(:js_concatenate, "my-js-bundle-2", "/app.js", "/util.js")
+          assert js_bundle_tags["my-js-bundle-2-#{@bundle_file_md5}.js"]
         end
 
         should "produce the expected bundled contents" do
-          @server.js_bundle(:js_concatenate, "my-js-bundle", "/app.js", "/util.js")
-          get @url
+          @server.js_bundle(:js_concatenate, "my-js-bundle-3", "/app.js", "/util.js")
+          get "/assets/my-js-bundle-3-#{@bundle_file_md5}.js"
           assert_equal 200, last_response.status
           assert_equal @bundle_file_body, last_response.body
           assert_equal last_response.body.length, last_response.headers["Content-Length"].to_i
           assert_equal "application/javascript", last_response.headers["Content-Type"]
+        end
+
+        should "only be created once" do
+          bundle_times_called = 0
+          BundleType.create(:spy) { bundle_times_called += 1; "result" }
+          @server.js_bundle(:spy, "my-js-bundle-4", "/app.js", "/util.js")
+          @server.js_bundle(:spy, "my-js-bundle-4", "/app.js", "/util.js")
+          assert_equal 1, bundle_times_called
+        end
+
+        should "raise an error if two bundles are made with the same name and different paths" do
+          assert_raises(RuntimeError) do
+            @server.js_bundle(:js_concatenate, "my-js-bundle-5", "/app.js", "/util.js")
+            @server.js_bundle(:js_concatenate, "my-js-bundle-5", "/app.js")
+          end
         end
       end
 

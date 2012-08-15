@@ -12,6 +12,12 @@ module Pinion
 
     def initialize(mount_point)
       @mount_point = mount_point
+      # This is a cache of bundle_name => <List of Paths in the bundle>. The purpose of this is just to help
+      # prevent people make the mistake of giving different bundles the same name. This could give confusing
+      # behavior; by keeping track of it and checking each time we try to make a bundle, we'll be able to
+      # throw a meaningful error message. Even in development, where bundles aren't actually created, we'll
+      # keep track of this in order to prevent such mistakes.
+      @created_bundles = {}
     end
 
     def convert(from_and_to, &block)
@@ -64,7 +70,15 @@ module Pinion
         path.sub!("-#{checksum_tag}", "")
       end
 
-      asset = Bundle[bundle_name, checksum_tag] || Asset[path]
+      # First see if there is a bundle with this name
+      asset = Bundle[bundle_name]
+      if asset
+        # If the checksum doesn't match the bundle, we want to return a 404.
+        asset = nil unless asset.checksum == checksum_tag
+      else
+        # If there is no bundle with this name, find another type of Asset with the name instead.
+        asset = Asset[path]
+      end
 
       if asset
         # If the ETag matches, give a 304
@@ -116,14 +130,32 @@ module Pinion
     # Bundle several assets together. In production, the single bundled result is produced; otherwise, each
     # individual asset_url is returned.
     def bundle_url(bundle_name, name, *paths)
-      return paths.map { |p| asset_url(p) } unless Pinion.environment == "production"
-      paths.each { |path| path.sub!(%r[^(#{@mount_point})?/?], "") }
-      assets = paths.map do |path|
-        asset = Asset[path]
-        raise "Error: no such asset available: #{path}" unless asset
-        asset
+      # Remember each bundle we create. If we've previously created a bundle with the same type and name but
+      # different files, then this is an unrecoverable error. This is performed even in development mode for
+      # error-detection purposes.
+      if @created_bundles[name]
+        if @created_bundles[name] != paths
+          raise "Error: there is already a bundle called #{name} with different component files. Each " <<
+                "bundle must have a unique name."
+        end
+      else
+        @created_bundles[name] = paths
       end
-      bundle = Bundle.create(bundle_name, name, assets)
+
+      # When we're not in production, emit each individual url.
+      return paths.map { |p| asset_url(p) } unless Pinion.environment == "production"
+      # First check to see if we've already made this bundle. We know from the @created_bundles check that if
+      # the bundle exists, it was created with the same list of assets.
+      bundle = Bundle[name]
+      unless bundle
+        assets = paths.map do |path|
+          normalized_path = path.sub(%r[^(#{@mount_point})?/?], "")
+          asset = Asset[normalized_path]
+          raise "Error: no such asset available: #{path}" unless asset
+          asset
+        end
+        bundle = Bundle.create(bundle_name, name, assets)
+      end
       ["#{@mount_point}/#{bundle.name}-#{bundle.checksum}.#{bundle.extension}"]
     end
     def js_bundle(bundle_name, name, *paths)
