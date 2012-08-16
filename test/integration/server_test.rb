@@ -158,9 +158,14 @@ module Pinion
           #refute_in_delta Time.parse(last_response.headers["Last-Modified"]).to_i, Time.now.to_i, 3
         #end
 
-        should "set a cache control policy to cache for a year" do
+        should "set a cache control policy to cache for a year when using a url helper and checksum" do
           get @url
           assert_equal "public, max-age=#{365 * 24 * 60 * 60}", last_response.headers["Cache-Control"]
+        end
+
+        should "set a cache control policy to cache for 10 minutes when not using a url helper/checksum" do
+          get "/assets/app.js"
+          assert_equal "public, max-age=#{10 * 60}", last_response.headers["Cache-Control"]
         end
       end
 
