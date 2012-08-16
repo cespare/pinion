@@ -85,10 +85,10 @@ module Pinion
         return [304, {}, []] if env["HTTP_IF_NONE_MATCH"] == %Q["#{asset.checksum}"]
 
         if Pinion.environment == "production"
-          # In production, if there is a checksum, cache for a year (because if the asset
-          # changes with a redeploy, the checksum will change). If there is no checksum, cache for 10 minutes
-          # (this way at worst we only serve 10 minute stale assets, and caches in front of Pinion will be able
-          # to help out).
+          # In production, if there is a checksum, cache for a year (because if the asset changes with a
+          # redeploy, the checksum will change). If there is no checksum, cache for 10 minutes (this way at
+          # worst we only serve 10 minute stale assets, and caches in front of Pinion will be able to help
+          # out).
           cache_policy = checksum_tag ? "max-age=31536000" : "max-age=600"
         else
           # Don't cache in dev.
