@@ -11,38 +11,44 @@ module Pinion
     # Each bundle is cached by name.
     @@bundles = {}
 
-    attr_reader :contents, :name
+    attr_reader :contents, :name, :paths
 
     # Create a new `Bundle`.
-    def initialize(bundle_type, name, assets)
+    def initialize(bundle_type, name, paths)
       @bundle_type = bundle_type
       @name = name
-      @assets = assets
-      raise Error, "No assets provided" if assets.empty?
-      @extension = assets.first.extension
-      unless assets.all? { |asset| asset.extension == @extension }
+      @paths = paths
+      raise Error, "No paths provided" if paths.empty?
+
+      @assets = paths.map do |path|
+        asset = Asset[path]
+        raise "Error: no such asset available: #{path}" unless asset
+        asset
+      end
+      @extension = @assets.first.extension
+      unless @assets.all? { |asset| asset.extension == @extension }
         raise Error, "All assets in a bundle must have the same extension"
       end
-      @contents = bundle_type.process(assets)
+      @contents = bundle_type.process(@assets)
       @checksum = Digest::MD5.hexdigest(@contents)
-      @mtime = assets.map(&:mtime).max
+      @mtime = @assets.map(&:mtime).max
       @length = Rack::Utils.bytesize(@contents)
     end
 
-    # Create a new bundle from a bundle_type name (e.g. `:concatenate_and_uglify_js`) and an array of
-    # `Asset`s. The name is taken as the identifier in the resulting path.
-    def self.create(bundle_type_name, name, assets)
+    # Create a new bundle from a bundle_type name (e.g. `:concatenate_and_uglify_js`) and an array of paths.
+    # The name is taken as the identifier in the resulting path.
+    def self.create(name, bundle_type_name, paths)
       bundle_type = BundleType[bundle_type_name]
       raise Error, "No such bundle type #{bundle_type_name}" unless bundle_type
-      if @@bundles[name]
+      if @@bundles[name.to_s]
         raise Error, "There is already a bundle called #{name}. Each bundle must have a different name."
       end
-      bundle = Bundle.new(bundle_type, name, assets)
-      @@bundles[name] = bundle
+      bundle = Bundle.new(bundle_type, name, paths)
+      @@bundles[name.to_s] = bundle
       bundle
     end
 
     # Find a `Bundle` by its name.
-    def self.[](name) name && @@bundles[name] end
+    def self.[](name) name && @@bundles[name.to_s] end
   end
 end

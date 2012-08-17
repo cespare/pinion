@@ -105,7 +105,8 @@ module Pinion
 
       context "bundles" do
         should "return the tags for individual files from the bundle helper" do
-          js_bundle_tags = @server.js_bundle(:js_concatenate, "my-js-bundle-1", "/app.js", "/util.js")
+          @server.create_bundle(:my_js_bundle_1, :js_concatenate, ["/app.js", "/util.js"])
+          js_bundle_tags = @server.js_bundle(:my_js_bundle_1)
           expected_html = '<script type="text/javascript" src="/assets/app.js"></script>' <<
                           '<script type="text/javascript" src="/assets/util.js"></script>'
           assert_equal expected_html, js_bundle_tags
@@ -191,7 +192,7 @@ module Pinion
         # out a way to fix this while keeping the test fairly realistic.
         #should "not change the last-modified time if the file changes" do
           #coffee_file = "test/fixtures/js/util.coffee"
-          #assert File.file?(coffee_file) # Make sure it exists before we go touching it
+          #assert File.file?(coffee_file) # Make sure it exists before we go touching it
           #FileUtils.touch(coffee_file)
           #get @url
           #refute_in_delta Time.parse(last_response.headers["Last-Modified"]).to_i, Time.now.to_i, 3
@@ -205,31 +206,24 @@ module Pinion
 
       context "bundles" do
         should "return the bundled filename from the bundle helper" do
-          js_bundle_tags = @server.js_bundle(:js_concatenate, "my-js-bundle-2", "/app.js", "/util.js")
-          assert js_bundle_tags["my-js-bundle-2-#{@bundle_file_md5}.js"]
+          @server.create_bundle(:my_js_bundle_2, :js_concatenate, ["/app.js", "/util.js"])
+          js_bundle_tags = @server.js_bundle(:my_js_bundle_2)
+          assert js_bundle_tags["my_js_bundle_2-#{@bundle_file_md5}.js"]
         end
 
         should "produce the expected bundled contents" do
-          @server.js_bundle(:js_concatenate, "my-js-bundle-3", "/app.js", "/util.js")
-          get "/assets/my-js-bundle-3-#{@bundle_file_md5}.js"
+          @server.create_bundle(:my_js_bundle_3, :js_concatenate, ["/app.js", "/util.js"])
+          get "/assets/my_js_bundle_3-#{@bundle_file_md5}.js"
           assert_equal 200, last_response.status
           assert_equal @bundle_file_body, last_response.body
           assert_equal last_response.body.length, last_response.headers["Content-Length"].to_i
           assert_equal "application/javascript", last_response.headers["Content-Type"]
         end
 
-        should "only be created once" do
-          bundle_times_called = 0
-          BundleType.create(:spy) { bundle_times_called += 1; "result" }
-          @server.js_bundle(:spy, "my-js-bundle-4", "/app.js", "/util.js")
-          @server.js_bundle(:spy, "my-js-bundle-4", "/app.js", "/util.js")
-          assert_equal 1, bundle_times_called
-        end
-
-        should "raise an error if two bundles are made with the same name and different paths" do
+        should "raise an error if two bundles are made with the same name" do
           assert_raises(RuntimeError) do
-            @server.js_bundle(:js_concatenate, "my-js-bundle-5", "/app.js", "/util.js")
-            @server.js_bundle(:js_concatenate, "my-js-bundle-5", "/app.js")
+            @server.create_bundle(:my_js_bundle_5, :js_concatenate, ["/app.js", "/util.js"])
+            @server.create_bundle(:my_js_bundle_5, :js_concatenate, ["/app.js", "/util.js"])
           end
         end
       end

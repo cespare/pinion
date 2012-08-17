@@ -12,12 +12,6 @@ module Pinion
 
     def initialize(mount_point)
       @mount_point = mount_point
-      # This is a cache of bundle_name => <List of Paths in the bundle>. The purpose of this is just to help
-      # prevent people make the mistake of giving different bundles the same name. This could give confusing
-      # behavior; by keeping track of it and checking each time we try to make a bundle, we'll be able to
-      # throw a meaningful error message. Even in development, where bundles aren't actually created, we'll
-      # keep track of this in order to prevent such mistakes.
-      @created_bundles = {}
     end
 
     def convert(from_and_to, &block)
@@ -135,43 +129,30 @@ module Pinion
     def css_inline(path) %Q{<style type="text/css">#{asset_inline(path)}</style>} end
     def js_inline(path) %Q{<script>#{asset_inline(path)}</script>} end
 
-    # Bundle several assets together. In production, the single bundled result is produced; otherwise, each
-    # individual asset_url is returned.
-    def bundle_url(bundle_name, name, *paths)
-      # Remember each bundle we create. If we've previously created a bundle with the same type and name but
-      # different files, then this is an unrecoverable error. This is performed even in development mode for
-      # error-detection purposes.
-      if @created_bundles[name]
-        if @created_bundles[name] != paths
-          raise "Error: there is already a bundle called #{name} with different component files. Each " <<
-                "bundle must have a unique name."
-        end
-      else
-        @created_bundles[name] = paths
+    # Create a bundle of assets. Each asset must convert to the same final type. `name` is an identifier for
+    # this bundle; `bundle_name` is the # identifier for your bundle type (e.g. `:concatenate_and_uglify_js`);
+    # and `paths` are all the asset paths. In development, no bundles will be created (but the list of
+    # discrete assets will be saved for use in a subsequent `bundle_url` call).
+    def create_bundle(name, bundle_name, paths)
+      if Bundle[name]
+        raise "Error: there is already a bundle called #{name} with different component files. Each " <<
+              "bundle must have a unique name."
       end
 
-      # When we're not in production, emit each individual url.
-      return paths.map { |p| asset_url(p) } unless Pinion.environment == "production"
-      # First check to see if we've already made this bundle. We know from the @created_bundles check that if
-      # the bundle exists, it was created with the same list of assets.
+      normalized_paths = paths.map { |path| path.sub(%r[^(#{@mount_point})?/?], "") }
+      Bundle.create(name, bundle_name, normalized_paths)
+    end
+
+    # Return the bundle url. In production, the single bundled result is produced; otherwise, each individual
+    # asset_url is returned.
+    def bundle_url(name)
       bundle = Bundle[name]
-      unless bundle
-        assets = paths.map do |path|
-          normalized_path = path.sub(%r[^(#{@mount_point})?/?], "")
-          asset = Asset[normalized_path]
-          raise "Error: no such asset available: #{path}" unless asset
-          asset
-        end
-        bundle = Bundle.create(bundle_name, name, assets)
-      end
+      raise "No such bundle: #{name}" unless bundle
+      return bundle.paths.map { |p| asset_url(p) } unless Pinion.environment == "production"
       ["#{@mount_point}/#{bundle.name}-#{bundle.checksum}.#{bundle.extension}"]
     end
-    def js_bundle(bundle_name, name, *paths)
-      bundle_url(bundle_name, name, *paths).map { |path| js_wrapper(path) }.join
-    end
-    def css_bundle(bundle_name, name, *paths)
-      bundle_url(bundle_name, name, *paths).map { |path| css_wrapper(path) }.join
-    end
+    def js_bundle(name) bundle_url(name).map { |path| js_wrapper(path) }.join end
+    def css_bundle(name) bundle_url(name).map { |path| css_wrapper(path) }.join end
 
     private
 

@@ -11,6 +11,8 @@ class HelloApp < Sinatra::Base
     pinion.convert :coffee => :js
     pinion.watch "scss"
     pinion.watch "javascripts"
+
+    pinion.create_bundle(:test_bundle, :concatenate_and_uglify_js, ["uncompiled.js", "compiled.js"])
   end
 
   enable :inline_templates
@@ -30,6 +32,6 @@ html
   head
     title Sample App
     == css_url("style.css")
-    == js_bundle(:concatenate_and_uglify_js, "test-bundle", "uncompiled.js", "compiled.js")
+    == js_bundle(:test_bundle)
   body
     h3 Hello there! This text should be dark green.
