@@ -117,7 +117,7 @@ Pinion provides some helpers to help you construct links for assets.
 ```
 
 This assumes that you have the `Pinion::Server` instance available inside your app as `pinion`. If you're
-using sinatra and `Pinion::SinatraHelpers`, then the helpers are available right in your app's scope:
+using Sinatra and `Pinion::SinatraHelpers`, then the helpers are available right in your app's scope:
 
 ``` erb
   <%= css_url("style.css") %>
@@ -129,19 +129,21 @@ In production, you may wish to concatenate and minify your assets before you ser
 using asset bundles. Pinion provides a predefined bundle type, `:concatenate_and_uglify_js`, for your
 convenience.
 
-You can bundle files by putting this in your app:
+You will create bundles when you set up your `Pinion::Server` instance:
 
-``` erb
-<%= pinion.js_bundle(:concatenate_and_uglify_js, "main-bundle",
-    "app.js",
-    "helpers.js",
-    "util.js",
-    "jquery.js"
-    ) %>
+``` ruby
+pinion.create_bundle(:main_bundle, :concatenate_and_uglify_js, ["app.js", "util.js", "jquery.js"])
 ```
 
-In development, the individual `<script>` tags for each asset will be emitted; in production, a single asset
-(`main-bundle.js`) will be produced.
+In this case, `:main_bundle` is an identifier for this bundle, and will the name under which this bundle is
+served. In your view, you will use the bundle similarly to how you use the `js_url` or `css_url` helpers:
+
+``` erb
+<%= js_bundle(:main_bundle) %>
+```
+
+In development, the individual `<script>` tags for each asset will be emitted; in production, a single
+asset (`main-bundle.js`) will be produced.
 
 The `:concatenate_and_uglify_js` bundle type simply concatenates JS files and runs them through
 [Uglifier](https://github.com/lautis/uglifier). No default CSS bundle type is provided (but the built-in Sass
@@ -168,6 +170,15 @@ Note that in production mode, asset URLs will have the md5sum of the asset inser
 
 and these assets are served with long (1-year) expiry, for good cacheability.
 
+# Example
+
+You can see an example app using Pinion and Sinatra in the `example/` directory. This app shows serving some
+static and compiled assets as well as a simple asset bundle. Run `bundle install` in that directory to get the
+necessary gems, then run it:
+
+    rackup config.ru                     # Development mode
+    RACK_ENV=production rackup config.ru # Production mode
+
 # Notes
 
 * Currently, Pinion sidesteps the dependency question by invalidating its cache of each file of a particular
@@ -176,12 +187,9 @@ and these assets are served with long (1-year) expiry, for good cacheability.
   intance, if `foo/bar` and `foo/baz` are both on the watch list, and both of the files `foo/bar/style.scss`
   and `foo/baz/style.scss` exist, then `foo/bar/style.scss` will be used if a request occurs for
   `/style.css`.)
-
-You can see an example app using Pinion and Sinatra in the `example/` directory. Run `bundle install` in that
-directory to get the necessary gems, then run it:
-
-    rackup config.ru                     # Development mode
-    RACK_ENV=production rackup config.ru # Production mode
+* If you don't use the url helpers provided by Pinion and instead just serve assets with a plain url (that is,
+  without a checksum in the url), Pinion will serve the assets with 10-minute expiry in the Cache-Control
+  header. In general, you should try to serve all your assets by using the urls given by the helpers.
 
 ## Why not use Sprockets?
 
