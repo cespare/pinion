@@ -15,14 +15,13 @@ module Pinion
 
     # Create a new `Bundle`.
     def initialize(bundle_type, name, paths)
-      @bundle_type = bundle_type
       @name = name
       @paths = paths
       raise Error, "No paths provided" if paths.empty?
 
       @assets = paths.map do |path|
         asset = Asset[path]
-        raise "Error: no such asset available: #{path}" unless asset
+        raise Error, "No such asset available: #{path}" unless asset
         asset
       end
       @extension = @assets.first.extension
