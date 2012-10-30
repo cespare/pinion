@@ -29,7 +29,7 @@ module Pinion
         end
       else
         unless Conversion[from_and_to]
-          raise Error, "No immplicit conversion for #{from_and_to.inspect}. Must provide a conversion block."
+          raise Error, "No implicit conversion for #{from_and_to.inspect}. Must provide a conversion block."
         end
       end
     end
