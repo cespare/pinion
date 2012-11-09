@@ -96,6 +96,19 @@ module Pinion
     end
   end
 
+  Conversion.create :less => :css do
+    require_gem "less"
+    render do |file_contents, context|
+      load_paths = context[:load_paths].to_a || []
+      compress = Pinion.environment == "production"
+      Less::Parser.new(:paths => load_paths).parse(file_contents).to_css(:compress => compress)
+    end
+    watch do |path, context|
+      context[:load_paths] ||= Set.new
+      context[:load_paths] << path
+    end
+  end
+
   Conversion.create :coffee => :js do
     require_gem "coffee-script"
     render { |file_contents| CoffeeScript.compile(file_contents) }
