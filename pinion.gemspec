@@ -8,6 +8,7 @@ Gem::Specification.new do |s|
   s.authors     = ["Caleb Spare"]
   s.email       = ["cespare@gmail.com"]
   s.homepage    = "https://github.com/cespare/pinion"
+  s.license     = "MIT"
   s.summary     = %q{Pinion compiles and serves your assets}
   s.description =<<-EOS
 Pinion is a Rack application that you can use to compile and serve assets (such as Javascript and CSS).
