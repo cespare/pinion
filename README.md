@@ -217,7 +217,7 @@ don't really fit my ideal workflow. Here are a few things that Pinion does diffe
 * To support concatenation, Sprockets uses special directives in comments at the beginning of files (e.g.
   `//= require jquery`) to specify dependencies between files. To my mind, this is not desirable because:
 
-    * It's easier to debug in development if the files aren't all concatentated together.
+    * It's easier to debug in development if the files aren't all concatenated together.
     * Other systems (say, a node.js-based JS test runner) don't understand these dependencies.
     * How you bundle assets is mostly a caching/performance concern separate from your app logic, so it
       doesn't necessarily make sense to tie them together. For instance, you may wish to bundle together your
