@@ -38,9 +38,11 @@ class YourApp < Sinatra::Base
   set :pinion, Pinion::Server.new("/assets")
 
   configure do
-    # Tell Pinion each type of conversion it should perform
-    pinion.convert :scss => :css   # Sass and Coffeescript will just work if you have the gems installed
-    pinion.convert :coffee => :js  # Conversion types correspond to file extensions. .coffee -> .js
+    # Tell Pinion each type of conversion it should perform:
+    # * Sass and Coffeescript will just work if you have the gems installed
+    # * Conversion types correspond to file extensions. .coffee -> .js
+    pinion.convert :scss => :css
+    pinion.convert :coffee => :js
     pinion.convert :styl => :css do |file_contents|
       Stylus.compile file_contents # Requires the stylus gem
     end
@@ -80,9 +82,11 @@ require "your_app.rb"
 
 MOUNT_POINT = "/assets"
 pinion = Pinion::Server.new(MOUNT_POINT)
-# Tell Pinion each type of conversion it should perform
-pinion.convert :scss => :css   # Sass and Coffeescript will just work if you have the gems installed
-pinion.convert :coffee => :js  # Conversion types correspond to file extensions. .coffee -> .js
+# Tell Pinion each type of conversion it should perform:
+# * Sass and Coffeescript will just work if you have the gems installed
+# * Conversion types correspond to file extensions. .coffee -> .js
+pinion.convert :scss => :css
+pinion.convert :coffee => :js
 pinion.convert :styl => :css do |file_contents|
   Stylus.compile file_contents # Requires the stylus gem
 end
@@ -110,7 +114,8 @@ Pinion provides some helpers to help you construct links for assets.
 ``` erb
 <head>
   <title>My App</title>
-  <link type="text/css" rel="stylesheet" href="<%= pinion.asset_url("/assets/style.css") %>" />
+  <link type="text/css" rel="stylesheet"
+        href="<%= pinion.asset_url("/assets/style.css") %>" />
   <%# Shorthand equivalent %>
   <%= pinion.css_url("style.css") %>
 </head>
@@ -120,7 +125,7 @@ This assumes that you have the `Pinion::Server` instance available inside your a
 using Sinatra and `Pinion::SinatraHelpers`, then the helpers are available right in your app's scope:
 
 ``` erb
-  <%= css_url("style.css") %>
+<%= css_url("style.css") %>
 ```
 
 ## In Production
@@ -132,7 +137,9 @@ convenience.
 You will create bundles when you set up your `Pinion::Server` instance:
 
 ``` ruby
-pinion.create_bundle(:main_bundle, :concatenate_and_uglify_js, ["app.js", "util.js", "jquery.js"])
+pinion.create_bundle(:main_bundle,
+                     :concatenate_and_uglify_js,
+                     ["app.js", "util.js", "jquery.js"])
 ```
 
 In this case, `:main_bundle` is an identifier for this bundle, and will the name under which this bundle is
@@ -153,10 +160,11 @@ concatenation for you).
 You can define your own bundle types and their behavior if you like:
 
 ``` ruby
-# The block is passed an array of `Pinion::Asset`s; it should return the content of the bundled files.
+# The block is passed an array of `Pinion::Asset`s; it should return the content
+# of the bundled files.
 Pinion::BundleType.create(:concatenate_js_only) do |assets|
-  # Demo code only; you need to be a bit more careful in reality. See the definition of
-  # :concatenate_and_uglify_js for hints.
+  # Demo code only; you need to be a bit more careful in reality. See the
+  # definition of :concatenate_and_uglify_js for hints.
   assets.map(&:contents).join("\n")
 end
 ```
@@ -164,7 +172,8 @@ end
 Note that in production mode, asset URLs will have the md5sum of the asset inserted into them:
 
 ``` html
-<link type="text/css" rel="stylesheet" href="/assets/style-698f462d2f43890597ae78df8286d03f.css" />
+<link type="text/css" rel="stylesheet"
+      href="/assets/style-698f462d2f43890597ae78df8286d03f.css" />
 <script src="/assets/test-bundle-cd94852076ffa13c006cf575dfff9e35.js"></script>
 ```
 
