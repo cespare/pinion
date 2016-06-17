@@ -1,3 +1,5 @@
+**NOTE: I neither use nor maintain this project anymore.**
+
 # Pinion
 
 Pinion is a Rack application that serves assets, possibly transforming them in the process. It is generally
